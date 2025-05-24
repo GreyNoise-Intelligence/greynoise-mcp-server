@@ -1,8 +1,17 @@
-import express, { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getGreyNoiseApiKey, getGreyNoiseApiBase } from "./utils/api-key.js";
+
+// Dynamic Express import function for standalone operation
+async function loadExpress() {
+  try {
+    const expressModule = await import("express");
+    return expressModule.default;
+  } catch (error) {
+    return null;
+  }
+}
 
 // Parse CLI arguments
 function parseArgs() {
@@ -72,6 +81,42 @@ try {
   process.exit(1);
 }
 
+// Authorization middleware for HTTP transport
+function checkAuthorization(req: any, res: any, next: any): void {
+  const authHeader = req.headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    res.status(401).json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32001,
+        message: "Unauthorized: Missing or invalid Authorization header",
+      },
+      id: null,
+    });
+    return;
+  }
+
+  const token = authHeader.substring(7); // Remove 'Bearer ' prefix
+  
+  if (!token) {
+    res.status(401).json({
+      jsonrpc: "2.0",
+      error: {
+        code: -32001,
+        message: "Unauthorized: Empty token",
+      },
+      id: null,
+    });
+    return;
+  }
+
+  // You can add additional token validation here if needed
+  // For now, we just check that a token is present
+  
+  next();
+}
+
 // Create MCP Server
 const server = new McpServer({
   name: "greynoise-mcp",
@@ -124,10 +169,16 @@ async function main() {
       console.error(`GreyNoise MCP Server running with ${transport} transport...`);
       break;
     case "http":
+      const express = await loadExpress();
+      if (!express) {
+        console.error("Error: Express is not available. HTTP transport requires Express to be installed.");
+        console.error("Run 'npm install express' or use --transport stdio instead.");
+        process.exit(1);
+      }
       const app = express();
       app.use(express.json());
 
-      app.post("/mcp", async (req: Request, res: Response) => {
+      app.post("/mcp", checkAuthorization, async (req: any, res: any) => {
         try {
           const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
             sessionIdGenerator: undefined,
@@ -154,7 +205,7 @@ async function main() {
         }
       });
 
-      app.get("/mcp", async (req: Request, res: Response) => {
+      app.get("/mcp", async (req: any, res: any) => {
         console.log("Received GET MCP request");
         res.status(405).json({
           jsonrpc: "2.0",
@@ -166,7 +217,7 @@ async function main() {
         });
       });
 
-      app.delete("/mcp", async (req: Request, res: Response) => {
+      app.delete("/mcp", async (req: any, res: any) => {
         console.log("Received DELETE MCP request");
         res.writeHead(405).end(
           JSON.stringify({

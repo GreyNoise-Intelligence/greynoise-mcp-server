@@ -4,16 +4,24 @@
 
 ## Installation
 
+### For Development
 Clone the whole repo and then `npm install && npm run build`.
+
+### For Production/NPX Usage
+```bash
+npx greynoise-mcp-server --help
+```
+
+Note: The bundled version works standalone for stdio transport (default). HTTP transport requires Express to be available.
 
 This is a sample entry for, say, Claude Desktop:
 
-```
+```json
 {
   "mcpServers": {
     "greynoise": {
-      "command": "node",
-      "args": ["/absolute/path/to/greynoie-mcp-server/build/index.js"],
+      "command": "npx",
+      "args": ["greynoise-mcp-server"],
       "env": {
         "GREYNOISE_API_KEY": "your-greynoise-api-key"
       }
@@ -21,6 +29,33 @@ This is a sample entry for, say, Claude Desktop:
   }
 }
 ```
+
+Or for local development:
+
+```json
+{
+  "mcpServers": {
+    "greynoise": {
+      "command": "node",
+      "args": ["/absolute/path/to/greynoise-mcp-server/build/index.js"],
+      "env": {
+        "GREYNOISE_API_KEY": "your-greynoise-api-key"
+      }
+    }
+  }
+}
+```
+
+## Build System
+
+This project uses `tsup` for modern bundling:
+
+- **`npm run build`**: Creates optimized bundle for distribution
+- **`npm run build:dev`**: Development build with source maps
+- **`npm run dev`**: Watch mode with auto-rebuild
+- **`npm run build:standalone`**: Prepares package for NPX distribution
+
+The bundled output includes all core dependencies except Express (for HTTP transport) and dotenv (due to dynamic require limitations).
 
 ## Testing
 
@@ -82,6 +117,22 @@ The test script mimics how the actual MCP tools access the API with some key dif
 ## MCP Tools and Prompts
 
 This MCP server provides comprehensive access to GreyNoise Intelligence data about internet-scanning IP addresses, threat actors, and vulnerabilities. It includes tools for IP analysis (detailed context, quick checks, batch processing, and business service lookups), tag exploration, vulnerability tracking, and query capabilities.
+
+## Transport Options
+
+### stdio (Default)
+The bundled version works completely standalone for stdio transport:
+```bash
+npx greynoise-mcp-server --transport stdio
+```
+
+### http
+HTTP transport requires Express to be available in the environment:
+```bash
+# Ensure Express is available
+npm install express
+npx greynoise-mcp-server --transport http
+```
 
 ### Available Tools
 
