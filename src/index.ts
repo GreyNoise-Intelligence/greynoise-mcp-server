@@ -1,6 +1,39 @@
+import express, { Request, Response } from "express";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getGreyNoiseApiKey, getGreyNoiseApiBase } from "./utils/api-key.js";
+
+// Parse CLI arguments
+function parseArgs() {
+  const args = process.argv.slice(2);
+
+  // Check for help flag
+  if (args.includes("--help") || args.includes("-h")) {
+    console.log(`
+GreyNoise MCP Server
+
+Usage: gnapi [options]
+
+Options:
+  --transport <type>  Transport type to use (default: stdio)
+                      Supported types: stdio
+  --help, -h          Show this help message
+
+Examples:
+  gnapi
+  gnapi --transport stdio
+`);
+    process.exit(0);
+  }
+
+  const transportIndex = args.indexOf("--transport");
+  const transport = transportIndex !== -1 && args[transportIndex + 1] ? args[transportIndex + 1] : "stdio";
+
+  return { transport };
+}
+
+const { transport } = parseArgs();
 
 // Import tool registration functions
 import {
@@ -19,13 +52,13 @@ import {
 } from "./tools/index.js";
 
 // Import prompt registration functions
-import { 
+import {
   registerVendorThreatReportPrompt,
   registerIPThreatAnalysisPrompt,
   registerCVEAnalysisPrompt,
   registerEmergingThreatReportPrompt,
   registerSecurityPostureAssessmentPrompt,
-  registerThreatHuntingPrompt
+  registerThreatHuntingPrompt,
 } from "./prompts/index.js";
 
 // Get API configuration using utility functions
@@ -82,9 +115,81 @@ registerThreatHuntingPrompt(server);
 
 // Start server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("GreyNoise MCP Server running...");
+  let serverTransport;
+
+  switch (transport) {
+    case "stdio":
+      serverTransport = new StdioServerTransport();
+      await server.connect(serverTransport);
+      console.error(`GreyNoise MCP Server running with ${transport} transport...`);
+      break;
+    case "http":
+      const app = express();
+      app.use(express.json());
+
+      app.post("/mcp", async (req: Request, res: Response) => {
+        try {
+          const transport: StreamableHTTPServerTransport = new StreamableHTTPServerTransport({
+            sessionIdGenerator: undefined,
+          });
+          res.on("close", () => {
+            console.log("Request closed");
+            transport.close();
+            server.close();
+          });
+          await server.connect(transport);
+          await transport.handleRequest(req, res, req.body);
+        } catch (error) {
+          console.error("Error handling MCP request:", error);
+          if (!res.headersSent) {
+            res.status(500).json({
+              jsonrpc: "2.0",
+              error: {
+                code: -32603,
+                message: "Internal server error",
+              },
+              id: null,
+            });
+          }
+        }
+      });
+
+      app.get("/mcp", async (req: Request, res: Response) => {
+        console.log("Received GET MCP request");
+        res.status(405).json({
+          jsonrpc: "2.0",
+          error: {
+            code: -32000,
+            message: "Method not allowed.",
+          },
+          id: null,
+        });
+      });
+
+      app.delete("/mcp", async (req: Request, res: Response) => {
+        console.log("Received DELETE MCP request");
+        res.writeHead(405).end(
+          JSON.stringify({
+            jsonrpc: "2.0",
+            error: {
+              code: -32000,
+              message: "Method not allowed.",
+            },
+            id: null,
+          }),
+        );
+      });
+
+      const PORT = 9191;
+      app.listen(PORT, () => {
+        console.log(`MCP Stateless Streamable HTTP Server listening on port ${PORT}`);
+      });
+
+      break;
+    default:
+      console.error(`Unsupported transport type: ${transport}`);
+      process.exit(1);
+  }
 }
 
 main().catch((error) => {
