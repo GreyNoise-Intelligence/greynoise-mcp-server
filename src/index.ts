@@ -1,6 +1,38 @@
+#!/usr/bin/env node
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getGreyNoiseApiKey, getGreyNoiseApiBase } from "./utils/api-key.js";
+
+// Parse CLI arguments
+function parseArgs() {
+  const args = process.argv.slice(2);
+  
+  // Check for help flag
+  if (args.includes('--help') || args.includes('-h')) {
+    console.log(`
+GreyNoise MCP Server
+
+Usage: gnapi [options]
+
+Options:
+  --transport <type>  Transport type to use (default: stdio)
+                      Supported types: stdio
+  --help, -h          Show this help message
+
+Examples:
+  gnapi
+  gnapi --transport stdio
+`);
+    process.exit(0);
+  }
+  
+  const transportIndex = args.indexOf('--transport');
+  const transport = transportIndex !== -1 && args[transportIndex + 1] ? args[transportIndex + 1] : 'stdio';
+  
+  return { transport };
+}
+
+const { transport } = parseArgs();
 
 // Import tool registration functions
 import {
@@ -82,9 +114,19 @@ registerThreatHuntingPrompt(server);
 
 // Start server
 async function main() {
-  const transport = new StdioServerTransport();
-  await server.connect(transport);
-  console.error("GreyNoise MCP Server running...");
+  let serverTransport;
+  
+  switch (transport) {
+    case 'stdio':
+      serverTransport = new StdioServerTransport();
+      break;
+    default:
+      console.error(`Unsupported transport type: ${transport}`);
+      process.exit(1);
+  }
+  
+  await server.connect(serverTransport);
+  console.error(`GreyNoise MCP Server running with ${transport} transport...`);
 }
 
 main().catch((error) => {
