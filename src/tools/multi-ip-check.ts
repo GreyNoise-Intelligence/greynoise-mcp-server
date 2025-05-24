@@ -2,8 +2,9 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { MultiIPQuickCheckResponse } from "../types/greynoise-response.js";
 import { postToGreyNoise } from "../utils/fetch.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerMultiIPCheckTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerMultiIPCheckTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "multi-ip-check",
     "Check multiple IP addresses at once for noise and common business services",
@@ -12,6 +13,15 @@ export function registerMultiIPCheckTool(server: McpServer, apiBase: string, api
     },
     async ({ ips }) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+        
         // Build the request body
         const requestBody = { ips };
 

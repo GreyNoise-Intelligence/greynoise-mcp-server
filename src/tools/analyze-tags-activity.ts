@@ -3,8 +3,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GreyNoiseTag, GreyNoiseTagActivity, ActivitySummaryTag } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
 import { getCachedTags } from "../utils/tag-cache.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "analyze-tags-activity",
     "Analyze activity for multiple tags and provide a summary",
@@ -20,6 +21,15 @@ export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: stri
     },
     async ({ query, category, intention, cve, days }) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+
         // Get tags from cache or API
         const tags = await getCachedTags(apiBase, apiKey);
 

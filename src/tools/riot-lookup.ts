@@ -2,8 +2,9 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { RIOTLookupResponse } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerRiotLookupTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerRiotLookupTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "riot-lookup",
     "Check if an IP address belongs to a common business service",
@@ -12,6 +13,15 @@ export function registerRiotLookupTool(server: McpServer, apiBase: string, apiKe
     },
     async ({ ip }) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+        
         // Get RIOT information
         const riotData = await fetchGreyNoise<RIOTLookupResponse>(
           `v2/riot/${ip}`,

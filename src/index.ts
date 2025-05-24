@@ -2,6 +2,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { getGreyNoiseApiKey, getGreyNoiseApiBase } from "./utils/api-key.js";
+import { runWithApiContext } from "./utils/api-context.js";
 
 // Dynamic Express import function for standalone operation
 async function loadExpress() {
@@ -22,7 +23,7 @@ function parseArgs() {
     console.log(`
 GreyNoise MCP Server
 
-Usage: gnapi [options]
+Usage: npm run build/index.js [options]
 
 Options:
   --transport <type>  Transport type to use (default: stdio)
@@ -72,20 +73,23 @@ import {
 
 // Get API configuration using utility functions
 const GREYNOISE_API_BASE = getGreyNoiseApiBase();
-let GREYNOISE_API_KEY: string;
+let GREYNOISE_API_KEY: string | undefined;
 
-try {
-  GREYNOISE_API_KEY = getGreyNoiseApiKey();
-} catch (error) {
-  console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
-  process.exit(1);
+// For stdio transport, we need the API key at startup
+if (transport === "stdio") {
+  try {
+    GREYNOISE_API_KEY = getGreyNoiseApiKey();
+  } catch (error) {
+    console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+    process.exit(1);
+  }
 }
 
 // Authorization middleware for HTTP transport
 function checkAuthorization(req: any, res: any, next: any): void {
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
       jsonrpc: "2.0",
       error: {
@@ -98,7 +102,7 @@ function checkAuthorization(req: any, res: any, next: any): void {
   }
 
   const token = authHeader.substring(7); // Remove 'Bearer ' prefix
-  
+
   if (!token) {
     res.status(401).json({
       jsonrpc: "2.0",
@@ -111,9 +115,9 @@ function checkAuthorization(req: any, res: any, next: any): void {
     return;
   }
 
-  // You can add additional token validation here if needed
-  // For now, we just check that a token is present
-  
+  // Store the API key (Bearer token) in the request for use by tools
+  req.greynoiseApiKey = token;
+
   next();
 }
 
@@ -136,19 +140,27 @@ Each tool provides structured, formatted output for easy analysis and integratio
   `,
 });
 
-// Register all tools
-registerGetTagListTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerSearchTagsTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerGetTagDetailsTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerGetTagActivityTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerAnalyzeTagsActivityTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerGetTrendingVulnerabilitiesTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerLookupIPContextTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerQuickCheckIPTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerMultiIPCheckTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerRiotLookupTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerGnqlStatsTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
-registerGetCVEDetailsTool(server, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
+// Function to get API key for stdio transport
+function getStaticApiKey(): string {
+  if (GREYNOISE_API_KEY) {
+    return GREYNOISE_API_KEY;
+  }
+  throw new Error("No GreyNoise API key available");
+}
+
+// Register all tools with API key getter function
+registerGetTagListTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerSearchTagsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGetTagDetailsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGetTagActivityTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerAnalyzeTagsActivityTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGetTrendingVulnerabilitiesTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerLookupIPContextTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerQuickCheckIPTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerMultiIPCheckTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerRiotLookupTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGnqlStatsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGetCVEDetailsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 
 // Register all prompts
 registerVendorThreatReportPrompt(server);
@@ -188,8 +200,12 @@ async function main() {
             transport.close();
             server.close();
           });
-          await server.connect(transport);
-          await transport.handleRequest(req, res, req.body);
+          console.log(req);
+          // Run the MCP request within the API context using the Bearer token
+          await runWithApiContext(req.greynoiseApiKey, async () => {
+            await server.connect(transport);
+            await transport.handleRequest(req, res, req.body);
+          });
         } catch (error) {
           console.error("Error handling MCP request:", error);
           if (!res.headersSent) {

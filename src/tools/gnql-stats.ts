@@ -3,8 +3,9 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GnqlStatsResponse } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
 import { formatGnqlStats } from "../utils/formatters.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerGnqlStatsTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerGnqlStatsTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "gnql-stats",
     `
@@ -87,6 +88,15 @@ Examples:
     },
     async ({ query, count }) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+
         // Encode the GNQL query for URL
         const encodedQuery = encodeURIComponent(query);
 

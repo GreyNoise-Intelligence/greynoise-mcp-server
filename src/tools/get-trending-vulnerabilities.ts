@@ -3,14 +3,24 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { TrendingTagsResponse } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
 import { formatTrendingTags } from "../utils/formatters.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerGetTrendingVulnerabilitiesTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerGetTrendingVulnerabilitiesTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "get-trending-vulnerabilities",
     "Get a list of currently trending vulnerability tags and anomalies from GreyNoise",
     {},
     async ({}) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+
         // Get trending tags
         const trendingResponse = await fetchGreyNoise<TrendingTagsResponse>(
           "v3/summary/tags?sort=trending",

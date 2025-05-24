@@ -2,8 +2,9 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GreyNoiseTag } from "../types/greynoise-response.js";
 import { getCachedTags } from "../utils/tag-cache.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerSearchTagsTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerSearchTagsTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "search-tags",
     "Search GreyNoise Tags by various criteria",
@@ -15,7 +16,16 @@ export function registerSearchTagsTool(server: McpServer, apiBase: string, apiKe
     },
     async ({ query, category, intention, cve }) => {
       try {
-        // Get all tags from cache or API
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+        
+        // Get tags from cache or API
         const tags = await getCachedTags(apiBase, apiKey);
 
         // Apply filters

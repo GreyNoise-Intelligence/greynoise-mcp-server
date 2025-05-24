@@ -7,8 +7,9 @@ import {
 } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
 import { getCachedTags } from "../utils/tag-cache.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerGetTagActivityTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerGetTagActivityTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "get-tag-activity",
     "Retrieve time-series that includes unique IP counts and intention activity data for a specific GreyNoise tag or by CVE",
@@ -22,6 +23,15 @@ export function registerGetTagActivityTool(server: McpServer, apiBase: string, a
     },
     async ({ id_or_slug, cve, days }) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+
         if (!id_or_slug && !cve) {
           return {
             content: [

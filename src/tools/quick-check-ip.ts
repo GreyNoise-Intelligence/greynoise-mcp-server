@@ -2,8 +2,9 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { IPQuickCheckResponse } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerQuickCheckIPTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerQuickCheckIPTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "quick-check-ip",
     "Get a fast, lightweight check of an IP address from GreyNoise",
@@ -12,6 +13,15 @@ export function registerQuickCheckIPTool(server: McpServer, apiBase: string, api
     },
     async ({ ip }) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+        
         // Get quick check information
         const quickCheckData = await fetchGreyNoise<IPQuickCheckResponse>(
           `v2/noise/quick/${ip}`,

@@ -2,8 +2,9 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { GreyNoiseTag } from "../types/greynoise-response.js";
 import { getCachedTags } from "../utils/tag-cache.js";
+import { getApiKey } from "../utils/api-context.js";
 
-export function registerGetTagListTool(server: McpServer, apiBase: string, apiKey: string) {
+export function registerGetTagListTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   server.tool(
     "get-tag-list",
     `
@@ -23,6 +24,15 @@ Retrieve the complete list of GreyNoise tags. Metadata for each tag includes:
     {},
     async ({}) => {
       try {
+        // Get API key from context or fallback function
+        const apiKey = (() => {
+          try {
+            return getApiKey();
+          } catch {
+            return apiKeyGetter();
+          }
+        })();
+        
         // Get tags from cache or API
         const tags = await getCachedTags(apiBase, apiKey);
 
