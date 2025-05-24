@@ -17,12 +17,12 @@ Usage: gnapi [options]
 
 Options:
   --transport <type>  Transport type to use (default: stdio)
-                      Supported types: stdio
+                      Supported types: stdio, http
   --help, -h          Show this help message
 
 Examples:
-  gnapi
-  gnapi --transport stdio
+  npm run build/index.js --transport stdio
+  npm run build/index.js --transport http
 `);
     process.exit(0);
   }
