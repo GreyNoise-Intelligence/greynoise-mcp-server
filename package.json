@@ -1,5 +1,5 @@
 {
-  "name": "greynoise-mcp-server",
+  "name": "@greynoise/greynoise-mcp-server",
   "version": "0.2.0",
   "description": "MCP Server for the GreyNoise Enterprise API",
   "main": "build/index.js",
@@ -14,11 +14,11 @@
     "start": "node build/index.js",
     "dev": "tsup --watch --onSuccess 'node build/index.js'",
     "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
-    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch"
+    "test:watch": "node --experimental-vm-modules node_modules/jest/bin/jest.js --watch",
+    "prepublishOnly": "npm run build"
   },
   "files": [
     "build/index.js",
-    "build/.env",
     "package.json",
     "README.md"
   ],
@@ -28,8 +28,19 @@
     "security",
     "api"
   ],
-  "author": "",
+  "author": "boB Rudis <bob@greynoise.io>",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/GreyNoise-Intelligence/greynoise-mcp-server.git"
+  },
+  "homepage": "https://github.com/GreyNoise-Intelligence/greynoise-mcp-server#readme",
+  "bugs": {
+    "url": "https://github.com/GreyNoise-Intelligence/greynoise-mcp-server/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.0",
     "dotenv": "^16.0.3",

@@ -9,7 +9,7 @@ Clone the whole repo and then `npm install && npm run build`.
 
 ### For Production/NPX Usage
 ```bash
-npx greynoise-mcp-server --help
+npx @greynoise/greynoise-mcp-server --help
 ```
 
 Note: The bundled version works standalone for stdio transport (default). HTTP transport requires Express to be available.
@@ -21,7 +21,7 @@ This is a sample entry for, say, Claude Desktop:
   "mcpServers": {
     "greynoise": {
       "command": "npx",
-      "args": ["greynoise-mcp-server"],
+      "args": ["@greynoise/greynoise-mcp-server"],
       "env": {
         "GREYNOISE_API_KEY": "your-greynoise-api-key"
       }
@@ -123,7 +123,7 @@ This MCP server provides comprehensive access to GreyNoise Intelligence data abo
 ### stdio (Default)
 The bundled version works completely standalone for stdio transport:
 ```bash
-npx greynoise-mcp-server --transport stdio
+npx @greynoise/greynoise-mcp-server --transport stdio
 ```
 
 ### http
@@ -131,7 +131,7 @@ HTTP transport requires Express to be available in the environment:
 ```bash
 # Ensure Express is available
 npm install express
-npx greynoise-mcp-server --transport http
+npx @greynoise/greynoise-mcp-server --transport http
 ```
 
 ### Available Tools

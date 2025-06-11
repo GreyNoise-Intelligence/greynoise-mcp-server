@@ -1,0 +1,47 @@
+# Source files
+src/
+*.ts
+tsconfig.json
+tsup.config.ts
+
+# Development files
+.zed/
+node_modules/
+*.log*
+.env
+.env.*
+
+# Test files
+test-tools.js
+jest.config.js
+*.test.js
+*.test.ts
+__tests__/
+
+# Build artifacts (keep only the final build)
+dist/
+
+# Development scripts
+justfile
+
+# Documentation that's not needed in package
+enterprise-api.md
+samples.txt
+
+# Git files
+.git/
+.gitignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NPM files
+*.tgz
+package-lock.json
