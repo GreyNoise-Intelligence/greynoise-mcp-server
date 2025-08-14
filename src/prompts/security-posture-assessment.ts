@@ -37,7 +37,7 @@ Your assessment should include:
 1. Executive Summary
 2. Current Threat Landscape for ${industry} Industry
 3. Vulnerability Analysis for Key Technologies:
-   ${technologies.map(t => `- ${t}`).join("\n   ")}
+   ${technologies.map((t) => `- ${t}`).join("\n   ")}
 4. Exposure Assessment
 5. Attack Surface Analysis
 6. Threat Actor Intelligence Relevant to Organization

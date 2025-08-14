@@ -7,11 +7,14 @@ export function registerIPThreatAnalysisPrompt(server: McpServer) {
     "Generate a detailed analysis of an IP address to determine if it's malicious and associated threats",
     {
       ip: z.string().describe("The IP address to analyze"),
-      include_related: z.string().optional().describe("Whether to include information about related IPs/networks (true/false)"),
+      include_related: z
+        .string()
+        .optional()
+        .describe("Whether to include information about related IPs/networks (true/false)"),
     },
     async (args, extra) => {
       const ip = args.ip;
-      const includeRelated = args.include_related?.toLowerCase() !== 'false';
+      const includeRelated = args.include_related?.toLowerCase() !== "false";
 
       const description = `Detailed threat analysis for IP: ${ip}`;
 
