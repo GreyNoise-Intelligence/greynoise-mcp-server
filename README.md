@@ -131,7 +131,7 @@ HTTP transport requires Express to be available in the environment:
 ```bash
 # Ensure Express is available
 npm install express
-npx @greynoise/greynoise-mcp-server --transport http
+node @greynoise/greynoise-mcp-server --transport http
 ```
 
 ### Available Tools
