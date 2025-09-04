@@ -1,11 +1,11 @@
 {
   "name": "@greynoise/greynoise-mcp-server",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "MCP Server for the GreyNoise Enterprise API",
   "main": "build/index.js",
   "type": "module",
   "bin": {
-    "gnapi": "./build/index.js"
+    "gnapi": "build/index.js"
   },
   "scripts": {
     "build": "tsup && chmod 755 build/index.js",
@@ -32,7 +32,7 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/GreyNoise-Intelligence/greynoise-mcp-server.git"
+    "url": "git+https://github.com/GreyNoise-Intelligence/greynoise-mcp-server.git"
   },
   "homepage": "https://github.com/GreyNoise-Intelligence/greynoise-mcp-server#readme",
   "bugs": {

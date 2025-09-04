@@ -226,3 +226,29 @@ node @greynoise/greynoise-mcp-server --transport http
 1. **vendor-threat-report** - Generate a comprehensive threat report for a vendor technology
    - Produces a detailed analysis including executive summary, threat actor activity, recent vulnerabilities, attack patterns, mitigation recommendations, and confidence assessment
    - Automatically orchestrates multiple GreyNoise data queries to assemble a complete picture of the threat landscape
+   - Parameters: vendor (required), technology (optional), timeframe in days 1-90 (required)
+
+2. **ip-threat-analysis** - Generate a detailed analysis of an IP address to determine if it's malicious and associated threats
+   - Performs comprehensive threat analysis using GreyNoise data to classify IPs as malicious, benign, or unknown
+   - Includes classification, associated tags and activities, geographic/network information, historical activity timeline, threat severity assessment, and recommended actions
+   - Parameters: ip (required), include_related true/false (optional)
+
+3. **cve-analysis** - Generate a comprehensive analysis of a CVE including exploitation status and risk assessment
+   - Provides detailed vulnerability analysis including current exploitation status, trends, affected systems, attack vectors, geographical distribution, and risk scoring
+   - Combines CVE details with real-time exploitation data from GreyNoise observations
+   - Parameters: cve_id (required), timeframe in days 1-90 (optional, defaults to 30)
+
+4. **emerging-threat-report** - Generate a report on emerging threats based on recent activity and trending data
+   - Identifies and analyzes new and trending threats, attack vectors, vulnerability exploitations, and geographical threat distribution
+   - Includes predictions of near-future threats and strategic recommendations
+   - Parameters: days (optional: 1, 7, or 30, defaults to 7), focus_area (optional, e.g., 'ransomware', 'IoT', 'healthcare')
+
+5. **security-posture-assessment** - Generate a security posture assessment for an organization based on technologies and vulnerabilities
+   - Provides comprehensive security assessment tailored to an organization's technology stack and industry
+   - Includes vulnerability analysis for key technologies, exposure assessment, attack surface analysis, risk scoring by component, and prioritized security recommendations
+   - Parameters: organization (required), technologies as comma-separated list (required), industry (optional)
+
+6. **threat-hunting** - Generate a threat hunting plan based on specific indicators or patterns
+   - Creates detailed hunting plans for different indicator types including IPs, tags, behaviors, actors, or CVEs
+   - Provides detection methods, data sources, search patterns, timeline, evidence collection methods, and response procedures
+   - Parameters: indicator_type (required: 'ip', 'tag', 'behavior', 'actor', or 'cve'), indicator_value (required), environment description (required)
