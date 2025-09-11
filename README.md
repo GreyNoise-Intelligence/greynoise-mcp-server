@@ -4,6 +4,10 @@
 
 ## Installation
 
+### DXT
+
+If you use Claude Desktop or another client that can import MCP servers via DXT files, just download and double-click on the provided DXT.
+
 ### For Development
 Clone the whole repo and then `npm install && npm run build`.
 

@@ -1,5 +1,10 @@
 import fetch from "node-fetch";
 
+// Package info for User-Agent
+const PACKAGE_NAME = "@greynoise/greynoise-mcp-server";
+const PACKAGE_VERSION = "0.2.2";
+const USER_AGENT = `${PACKAGE_NAME}/${PACKAGE_VERSION}`;
+
 /**
  * Makes an authenticated GET request to the GreyNoise API.
  *
@@ -42,6 +47,7 @@ export async function fetchGreyNoise<T>(
         key: GREYNOISE_API_KEY,
         "Content-Type": "application/json",
         Accept: "application/json",
+        "User-Agent": USER_AGENT,
       },
     });
 
@@ -58,7 +64,7 @@ export async function fetchGreyNoise<T>(
   } catch (error) {
     console.error(`Error fetching from GreyNoise API: ${error instanceof Error ? error.message : String(error)}`);
     console.error(`URL: ${url.toString()}`);
-    console.error(`API Key provided: ${GREYNOISE_API_KEY ? 'Yes (length: ' + GREYNOISE_API_KEY.length + ')' : 'No'}`);
+    console.error(`API Key provided: ${GREYNOISE_API_KEY ? "Yes (length: " + GREYNOISE_API_KEY.length + ")" : "No"}`);
     throw error;
   }
 }
@@ -93,11 +99,12 @@ export async function postToGreyNoise<T>(
 
   try {
     const response = await fetch(url.toString(), {
-      method: 'POST',
+      method: "POST",
       headers: {
         key: GREYNOISE_API_KEY,
         "Content-Type": "application/json",
         Accept: "application/json",
+        "User-Agent": USER_AGENT,
       },
       body: JSON.stringify(body),
     });
@@ -116,7 +123,7 @@ export async function postToGreyNoise<T>(
     console.error(`Error posting to GreyNoise API: ${error instanceof Error ? error.message : String(error)}`);
     console.error(`URL: ${url.toString()}`);
     console.error(`Body: ${JSON.stringify(body)}`);
-    console.error(`API Key provided: ${GREYNOISE_API_KEY ? 'Yes (length: ' + GREYNOISE_API_KEY.length + ')' : 'No'}`);
+    console.error(`API Key provided: ${GREYNOISE_API_KEY ? "Yes (length: " + GREYNOISE_API_KEY.length + ")" : "No"}`);
     throw error;
   }
 }
