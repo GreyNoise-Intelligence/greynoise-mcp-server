@@ -1,6 +1,6 @@
 {
   "name": "@greynoise/greynoise-mcp-server",
-  "version": "0.2.2",
+  "version": "0.2.3",
   "description": "MCP Server for the GreyNoise Enterprise API",
   "main": "build/index.js",
   "type": "module",

@@ -106,53 +106,35 @@ export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: stri
         const activityResults = await Promise.all(activityPromises);
         const validResults = activityResults.filter((result): result is NonNullable<typeof result> => result !== null);
 
-        // Generate summary
-        const summary = {
-          analyzed_tags: validResults.length,
-          time_period: {
-            days: daysNum,
-            granularity,
-          },
-          total_active_ips_by_classification: {
-            malicious: 0,
-            suspicious: 0,
-            benign: 0,
-            unknown: 0,
-          } as Record<string, number>,
-          most_active_tags: [] as ActivitySummaryTag[],
-          tags_detail: validResults
-            .map((result) => {
-              if (!result) return null;
-              const { tag, activity } = result;
-              const totalIps = activity.aggregations?.total_ips || 0;
+        // Initialize aggregation objects
+        const totalActiveIpsByClassification: Record<string, number> = {
+          malicious: 0,
+          suspicious: 0,
+          benign: 0,
+          unknown: 0,
+        };
+        const mostActiveTags: ActivitySummaryTag[] = [];
 
-              // Update total counts
-              if (activity.aggregations?.classification) {
-                for (const [classification, count] of Object.entries(activity.aggregations.classification)) {
-                  if (count !== undefined) {
-                    // Use type assertion to inform TypeScript that the classification keys match
-                    (summary.total_active_ips_by_classification as Record<string, number>)[classification] =
-                      ((summary.total_active_ips_by_classification as Record<string, number>)[classification] || 0) +
-                      count;
-                  }
+        // Process results and build tag details
+        const tagsDetail = validResults
+          .map((result) => {
+            if (!result) return null;
+            const { tag, activity } = result;
+            const totalIps = activity.aggregations?.total_ips || 0;
+
+            // Update total counts
+            if (activity.aggregations?.classification) {
+              for (const [classification, count] of Object.entries(activity.aggregations.classification)) {
+                if (count !== undefined) {
+                  totalActiveIpsByClassification[classification] =
+                    (totalActiveIpsByClassification[classification] || 0) + count;
                 }
               }
+            }
 
-              // Add to most active tags
-              if (totalIps > 0) {
-                summary.most_active_tags.push({
-                  name: tag.name,
-                  slug: tag.slug,
-                  total_ips: totalIps,
-                  classification: Object.fromEntries(
-                    Object.entries(activity.aggregations?.classification || {})
-                      .filter(([_, value]) => value !== undefined)
-                      .map(([key, value]) => [key, value as number]),
-                  ),
-                });
-              }
-
-              return {
+            // Add to most active tags
+            if (totalIps > 0) {
+              mostActiveTags.push({
                 name: tag.name,
                 slug: tag.slug,
                 total_ips: totalIps,
@@ -161,13 +143,36 @@ export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: stri
                     .filter(([_, value]) => value !== undefined)
                     .map(([key, value]) => [key, value as number]),
                 ),
-              };
-            })
-            .filter(Boolean), // Remove nulls
-        };
+              });
+            }
+
+            return {
+              name: tag.name,
+              slug: tag.slug,
+              total_ips: totalIps,
+              classification: Object.fromEntries(
+                Object.entries(activity.aggregations?.classification || {})
+                  .filter(([_, value]) => value !== undefined)
+                  .map(([key, value]) => [key, value as number]),
+              ),
+            };
+          })
+          .filter(Boolean); // Remove nulls
 
         // Sort most active tags by total IPs
-        summary.most_active_tags.sort((a, b) => b.total_ips - a.total_ips);
+        mostActiveTags.sort((a, b) => b.total_ips - a.total_ips);
+
+        // Generate summary
+        const summary = {
+          analyzed_tags: validResults.length,
+          time_period: {
+            days: daysNum,
+            granularity,
+          },
+          total_active_ips_by_classification: totalActiveIpsByClassification,
+          most_active_tags: mostActiveTags,
+          tags_detail: tagsDetail,
+        };
 
         return {
           content: [
