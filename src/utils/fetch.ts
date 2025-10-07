@@ -2,7 +2,7 @@ import fetch from "node-fetch";
 
 // Package info for User-Agent
 const PACKAGE_NAME = "@greynoise/greynoise-mcp-server";
-const PACKAGE_VERSION = "0.2.2";
+const PACKAGE_VERSION = "0.2.4";
 const USER_AGENT = `${PACKAGE_NAME}/${PACKAGE_VERSION}`;
 
 /**
