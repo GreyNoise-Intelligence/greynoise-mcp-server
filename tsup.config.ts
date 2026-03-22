@@ -1,6 +1,5 @@
 import { defineConfig } from 'tsup'
-import { copyFileSync, existsSync, rmSync } from 'fs'
-import { resolve } from 'path'
+import { existsSync, rmSync } from 'fs'
 
 export default defineConfig({
   entry: ['src/index.ts'],
@@ -23,15 +22,6 @@ export default defineConfig({
         rmSync(dir, { recursive: true, force: true })
       }
     })
-    
-    // Copy .env file if it exists
-    const envPath = resolve('.env')
-    const buildEnvPath = resolve('build/.env')
-    
-    if (existsSync(envPath)) {
-      copyFileSync(envPath, buildEnvPath)
-      console.log('✓ Copied .env to build directory')
-    }
   },
   external: [
     // Node.js built-ins
@@ -58,8 +48,7 @@ export default defineConfig({
     'readline',
     'perf_hooks',
     // Express ecosystem - keep external due to dynamic require issues
-    'express',
-    'dotenv'
+    'express'
   ],
   noExternal: [
     // Bundle only these safe dependencies for standalone operation

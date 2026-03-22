@@ -1,5 +1,11 @@
 # NEWS
 
+## 2026-03-22 | v0.3.3
+
+### Bug Fixes
+- Removed `dotenv` dependency that caused MCPB bundle crash in Claude Desktop (server exited immediately after initialize because `dotenv` was external/unbundled and unavailable in MCPB context)
+- Environment variable `GREYNOISE_API_KEY` is now read directly from `process.env` (set by MCPB manifest, Claude Desktop config, or shell environment)
+
 ## 2026-03-22 | v0.3.2
 
 ### Breaking Changes
