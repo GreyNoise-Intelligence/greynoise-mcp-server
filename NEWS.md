@@ -1,10 +1,11 @@
 # NEWS
 
-## 2026-03-22 | v0.3.3
+## 2026-03-22 | v0.3.4
 
 ### Bug Fixes
-- Removed `dotenv` dependency that caused MCPB bundle crash in Claude Desktop (server exited immediately after initialize because `dotenv` was external/unbundled and unavailable in MCPB context)
-- Environment variable `GREYNOISE_API_KEY` is now read directly from `process.env` (set by MCPB manifest, Claude Desktop config, or shell environment)
+- Fixed MCPB bundle crash in Claude Desktop: `esbuildOptions.packages = 'external'` was overriding tsup's `noExternal`, leaving MCP SDK, zod, and node-fetch as unresolvable external imports in the standalone bundle
+- Removed `dotenv` dependency; `GREYNOISE_API_KEY` now read directly from `process.env`
+- Bundle is now fully self-contained (1.2 MB) with only Node built-in externals
 
 ## 2026-03-22 | v0.3.2
 

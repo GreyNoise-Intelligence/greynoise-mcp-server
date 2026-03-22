@@ -47,6 +47,9 @@ export default defineConfig({
     'dns',
     'readline',
     'perf_hooks',
+    'async_hooks',
+    'http2',
+    'process',
     // Express ecosystem - keep external due to dynamic require issues
     'express'
   ],
@@ -58,6 +61,5 @@ export default defineConfig({
   ],
   esbuildOptions(options) {
     options.platform = 'node'
-    options.packages = 'external'
   }
 })
