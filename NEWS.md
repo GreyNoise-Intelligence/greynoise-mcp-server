@@ -1,6 +1,6 @@
 # NEWS
 
-## 2026-03-22 | v0.3.0
+## 2026-03-22 | v0.3.2
 
 ### Breaking Changes
 - Migrated all IP tools from v2 to v3 API endpoints
