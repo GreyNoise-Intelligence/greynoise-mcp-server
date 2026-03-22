@@ -25,7 +25,7 @@ export function registerLookupIPContextTool(server: McpServer, apiBase: string, 
         
         // Get IP context information
         const contextData = await fetchGreyNoise<IPContextResponse>(
-          `v2/noise/context/${ip}`,
+          `v3/ip/${ip}`,
           apiBase,
           apiKey,
         );

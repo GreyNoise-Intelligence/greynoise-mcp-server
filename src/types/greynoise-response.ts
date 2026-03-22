@@ -342,138 +342,281 @@ export interface CVEDetailsResponse {
   };
 }
 
+// ─── v3 IP Lookup Types ──────────────────────────────────────────────────────
+
 /**
- * Response structure for IP context information from GreyNoise
+ * Business Service Intelligence (BSI) - replaces RIOT in v3
+ */
+export interface BusinessServiceIntelligence {
+  found: boolean;
+  category?: string;
+  name?: string;
+  description?: string;
+  explanation?: string;
+  last_updated?: string;
+  reference?: string;
+  trust_level?: string;
+}
+
+/**
+ * Tag object embedded in v3 IP responses (richer than plain string)
+ */
+export interface InternetScannerTag {
+  id: string;
+  slug: string;
+  name: string;
+  category: string;
+  intention: string;
+  description: string;
+  references: string[];
+  recommend_block: boolean;
+  cves: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+/**
+ * Metadata for an IP in the v3 Internet Scanner Intelligence response
+ */
+export interface InternetScannerMetadata {
+  mobile?: boolean;
+  source_country?: string;
+  source_country_code?: string;
+  source_city?: string;
+  region?: string;
+  organization?: string;
+  rdns?: string;
+  asn?: string;
+  category?: string;
+  os?: string;
+  destination_countries?: string[];
+  destination_country_codes?: string[];
+  destination_cities?: string[];
+  destination_asns?: string[];
+  single_destination?: boolean;
+  carrier?: string;
+  datacenter?: string;
+  domain?: string;
+  rdns_parent?: string;
+  rdns_validated?: boolean;
+  latitude?: number;
+  longitude?: number;
+  sensor_count?: number;
+  sensor_hits?: number;
+}
+
+/**
+ * HTTP raw data from v3 responses
+ */
+export interface RawDataHttp {
+  md5?: string;
+  cookie_keys?: string[];
+  request_authorization?: string[];
+  request_cookies?: string[];
+  request_header?: string[];
+  method?: string[];
+  request_origin?: string[];
+  host?: string[];
+  uri?: string[];
+  path?: string[];
+  useragent?: string[];
+  ja4h?: string[];
+}
+
+/**
+ * TLS raw data from v3 responses
+ */
+export interface RawDataTls {
+  cipher?: string;
+  ja4?: string[];
+}
+
+/**
+ * SSH raw data from v3 responses
+ */
+export interface RawDataSsh {
+  key?: string[];
+  ja4ssh?: string[];
+}
+
+/**
+ * TCP raw data from v3 responses
+ */
+export interface RawDataTcp {
+  ja4t?: string[];
+  ja4l?: string;
+}
+
+/**
+ * Source raw data from v3 responses
+ */
+export interface RawDataSource {
+  bytes?: number;
+}
+
+/**
+ * Raw data collected about an IP in v3 responses
+ */
+export interface InternetScannerRawData {
+  scan?: Array<{
+    port: number;
+    protocol: string;
+  }>;
+  ja3?: Array<{
+    fingerprint: string;
+    port: number;
+  }>;
+  hassh?: Array<{
+    fingerprint: string;
+    port: number;
+  }>;
+  http?: RawDataHttp;
+  tls?: RawDataTls;
+  ssh?: RawDataSsh;
+  tcp?: RawDataTcp;
+  source?: RawDataSource;
+}
+
+/**
+ * Internet Scanner Intelligence (ISI) - the core scanning data in v3
+ */
+export interface InternetScannerIntelligence {
+  ip?: string;
+  seen?: boolean;
+  classification?: string;
+  first_seen?: string;
+  last_seen?: string;
+  last_seen_timestamp?: string[];
+  found?: boolean;
+  actor?: string;
+  bot?: boolean;
+  spoofable?: boolean;
+  cves?: string[];
+  tor?: boolean;
+  vpn?: boolean;
+  vpn_service?: string;
+  metadata?: InternetScannerMetadata;
+  tags?: InternetScannerTag[];
+  raw_data?: InternetScannerRawData;
+}
+
+/**
+ * Request metadata included in v3 responses
+ */
+export interface V3RequestMetadata {
+  restricted_fields?: string[];
+  message?: string;
+}
+
+/**
+ * v3 IP context response structure (GET /v3/ip/{ip})
  */
 export interface IPContextResponse {
-  /** The IP address */
   ip: string;
-  /** When this IP was first observed by GreyNoise */
-  first_seen: string;
-  /** When this IP was last observed by GreyNoise */
-  last_seen: string;
-  /** Whether this IP has been observed by GreyNoise */
-  seen: boolean;
-  /** List of tags associated with this IP */
-  tags: string[];
-  /** The actor associated with this IP, if any */
-  actor: string;
-  /** Whether this IP is spoofable */
-  spoofable: boolean;
-  /** Classification of this IP (e.g., 'malicious', 'benign') */
-  classification: string;
-  /** List of CVEs associated with this IP's activity */
-  cve: string[];
-  /** Whether this IP is part of a botnet */
-  bot: boolean;
-  /** Whether this IP is associated with a VPN service */
-  vpn: boolean;
-  /** The name of the VPN service, if applicable */
-  vpn_service: string;
-  /** Additional metadata about the IP */
-  metadata: {
-    /** Autonomous System Number */
-    asn: string;
-    /** City location */
-    city: string;
-    /** Country location */
-    country: string;
-    /** Two-letter country code */
-    country_code: string;
-    /** Organization that owns the IP */
-    organization: string;
-    /** Category of the organization */
-    category: string;
-    /** Whether this IP is a Tor exit node */
-    tor: boolean;
-    /** Reverse DNS information */
-    rdns: string;
-    /** Operating system if detected */
-    os: string;
-    /** Region location */
-    region: string;
-    /** Countries this IP has been observed connecting to */
-    destination_countries: string[];
-    /** Two-letter country codes this IP has been observed connecting to */
-    destination_country_codes: string[];
-    /** Country where this IP is located */
-    source_country: string;
-    /** Two-letter country code where this IP is located */
-    source_country_code: string;
-    /** Number of GreyNoise sensors that have observed this IP */
-    sensor_hits: number;
-    /** Total number of GreyNoise sensors */
-    sensor_count: number;
+  business_service_intelligence: BusinessServiceIntelligence;
+  internet_scanner_intelligence: InternetScannerIntelligence;
+  request_metadata?: V3RequestMetadata;
+}
+
+/**
+ * v3 IP quick check response (GET /v3/ip/{ip}?quick=true)
+ */
+export interface IPQuickCheckV3Response {
+  ip: string;
+  business_service_intelligence: {
+    found: boolean;
+    trust_level?: string;
   };
-  /** Raw data collected about this IP */
-  raw_data: {
-    /** Port scan information */
-    scan: Array<{
-      /** Port number */
-      port: number;
-      /** Protocol (e.g., 'tcp', 'udp') */
-      protocol: string;
-    }>;
-    /** Web request information */
-    web: Record<string, any>;
-    /** JA3 TLS fingerprint information */
-    ja3: Array<{
-      /** The JA3 fingerprint hash */
-      fingerprint: string;
-      /** Port on which the TLS connection was observed */
-      port: number;
-    }>;
-    /** HASSH SSH fingerprint information */
-    hassh: any[];
+  internet_scanner_intelligence: {
+    found: boolean;
+    classification?: string;
   };
 }
 
 /**
- * Response structure for IP quick check
+ * v3 Multi-IP response (POST /v3/ip)
  */
-export interface IPQuickCheckResponse {
-  /** Response code indicating the status of the request */
-  code: string;
-  /** The IP address that was checked */
-  ip: string;
-  /** Whether this IP is classified as "noise" (scanning or crawling the internet) */
-  noise: boolean;
-  /** Whether this IP belongs to a common business service */
-  riot: boolean;
+export interface MultiIPV3Response {
+  data: IPContextResponse[];
+  request_metadata: V3RequestMetadata & {
+    ips_not_found?: string[];
+  };
+}
+
+// ─── v3 GNQL Types ───────────────────────────────────────────────────────────
+
+/**
+ * Pagination metadata common to v3 GNQL responses
+ */
+export interface GnqlPaginationMetadata {
+  complete: boolean;
+  scroll?: string;
+  query: string;
+  adjusted_query?: string;
+  restricted_fields?: string[];
+  message?: string;
 }
 
 /**
- * Response structure for checking multiple IPs
+ * v3 GNQL query response (GET /v3/gnql)
  */
-export interface MultiIPQuickCheckResponse extends Array<{
-  /** Response code indicating the status of the request */
-  code: string;
-  /** The IP address that was checked */
-  ip: string;
-  /** Whether this IP is classified as "noise" (scanning or crawling the internet) */
-  noise: boolean;
-  /** Whether this IP belongs to a common business service */
-  riot: boolean;
-}> {}
+export interface GnqlQueryResponse {
+  data: IPContextResponse[];
+  request_metadata: GnqlPaginationMetadata;
+}
 
 /**
- * Response structure for RIOT IP lookup
+ * v3 GNQL metadata query response (GET /v3/gnql/metadata)
+ * Same shape but results lack raw_data
  */
-export interface RIOTLookupResponse {
-  /** The IP address that was looked up */
+export interface GnqlMetadataQueryResponse {
+  data: IPContextResponse[];
+  request_metadata: GnqlPaginationMetadata;
+}
+
+/**
+ * A single IP record in a timeseries hourly bucket.
+ * Note: tags are string[] in timeseries (not rich objects).
+ */
+export interface GnqlTimeseriesIPRecord {
   ip: string;
-  /** Whether this IP belongs to a common business service */
-  riot: boolean;
-  /** Name of the common business service */
-  name?: string;
-  /** Category of the common business service */
-  category?: string;
-  /** Description of the common business service */
-  description?: string;
-  /** Trust level of the common business service */
-  trust_level?: string;
-  /** When this RIOT entry was last updated */
-  last_updated?: string;
-  /** List of services provided by this IP */
-  services?: string[];
+  internet_scanner_intelligence?: {
+    first_seen?: string;
+    last_seen?: string;
+    found?: boolean;
+    tags?: string[];
+    classification?: string;
+    actor?: string;
+    bot?: boolean;
+    vpn?: boolean;
+    vpn_service?: string;
+    tor?: boolean;
+    spoofable?: boolean;
+    cves?: string[];
+    metadata?: InternetScannerMetadata;
+    raw_data?: InternetScannerRawData;
+    [key: string]: any;
+  };
+  business_service_intelligence?: BusinessServiceIntelligence;
+  [key: string]: any;
+}
+
+/**
+ * v3 GNQL timeseries response (GET /v3/gnql/timeseries)
+ * Response is a flat dict: keys are timestamp strings (e.g., "2026-03-15-11"),
+ * values are arrays of IP records for that hour.
+ */
+export type GnqlTimeseriesResponse = Record<string, GnqlTimeseriesIPRecord[]>;
+
+/**
+ * v3 GNQL timeseries stats response (GET /v3/gnql/timeseries/stats)
+ */
+export interface GnqlTimeseriesStatsResponse {
+  count: number;
+  max: number;
+  min: number;
+  data: Array<{
+    date: string;
+    count: number;
+  }>;
 }

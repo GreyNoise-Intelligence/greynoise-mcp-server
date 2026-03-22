@@ -1,7 +1,8 @@
 import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { IPQuickCheckResponse } from "../types/greynoise-response.js";
+import { IPQuickCheckV3Response } from "../types/greynoise-response.js";
 import { fetchGreyNoise } from "../utils/fetch.js";
+import { formatQuickCheckV3 } from "../utils/formatters.js";
 import { getApiKey } from "../utils/api-context.js";
 
 export function registerQuickCheckIPTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
@@ -13,7 +14,6 @@ export function registerQuickCheckIPTool(server: McpServer, apiBase: string, api
     },
     async ({ ip }) => {
       try {
-        // Get API key from context or fallback function
         const apiKey = (() => {
           try {
             return getApiKey();
@@ -21,42 +21,15 @@ export function registerQuickCheckIPTool(server: McpServer, apiBase: string, api
             return apiKeyGetter();
           }
         })();
-        
-        // Get quick check information
-        const quickCheckData = await fetchGreyNoise<IPQuickCheckResponse>(
-          `v2/noise/quick/${ip}`,
+
+        const quickCheckData = await fetchGreyNoise<IPQuickCheckV3Response>(
+          `v3/ip/${ip}`,
           apiBase,
           apiKey,
+          { quick: "true" },
         );
 
-        // Format response based on noise status
-        let statusEmoji = "❓";
-        let description = "Unknown status";
-        
-        if (quickCheckData.noise) {
-          statusEmoji = "🔊";
-          description = "This IP is classified as NOISE - it has been observed scanning or crawling the internet.";
-        } else if (quickCheckData.noise === false) {
-          statusEmoji = "🔇";
-          description = "This IP is classified as NOT NOISE - it has not been observed scanning or crawling the internet.";
-        }
-
-        // Add riot information if available
-        let riotInfo = "";
-        if (quickCheckData.riot) {
-          riotInfo = "\n\n🏢 This IP belongs to a common business service.";
-        } else if (quickCheckData.riot === false) {
-          riotInfo = "\n\n🏢 This IP does not belong to a common business service.";
-        }
-
-        // Construct markdown response
-        const summaryText = `
-## IP Quick Check: ${ip}
-
-${statusEmoji} **${ip}**: ${description}${riotInfo}
-
-**Code**: ${quickCheckData.code}
-`;
+        const summaryText = formatQuickCheckV3(quickCheckData);
 
         return {
           content: [

@@ -1,0 +1,58 @@
+# Source files
+src/
+*.ts
+tsconfig.json
+tsup.config.ts
+
+# Development files
+.zed/
+.claude/
+node_modules/
+*.log*
+.env
+.env.*
+
+# Test files
+test-tools.js
+jest.config.js
+*.test.js
+*.test.ts
+__tests__/
+
+# Build artifacts (keep only the final build)
+dist/
+build/index.js.map
+
+# Development scripts
+justfile
+mise.toml
+
+# Documentation not needed in bundle
+enterprise-api.md
+enterprise-api-v3.md
+samples.txt
+docs/
+ip-lookup-new-fieldfs.json
+
+# Git files
+.git/
+.gitignore
+.npmignore
+
+# IDE files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# NPM/package files
+*.tgz
+package-lock.json
+
+# Old DXT file
+*.dxt
+*.mcpb

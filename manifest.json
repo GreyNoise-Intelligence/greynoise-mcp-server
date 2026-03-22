@@ -1,16 +1,18 @@
 {
-  "dxt_version": "0.1",
-  "name": "GreyNoise Intelligence MCP Server",
-  "version": "0.2.4",
+  "manifest_version": "0.3",
+  "name": "greynoise-mcp-server",
+  "display_name": "GreyNoise Intelligence MCP Server",
+  "version": "0.3.1",
   "description": "MCP Server for the GreyNoise Enterprise API",
-  "long_description": "This extension provides comprehensive access to GreyNoise's threat intelligence platform, enabling Claude to analyze internet-scanning IP addresses, track threat actors, investigate vulnerabilities, and generate security insights. GreyNoise specializes in identifying and categorizing internet background noise - the automated scanning, crawling, and exploitation attempts that occur constantly across the internet. This MCP server allows you to get detailed context about IP addresses—including their scanning behavior, geographical location, associated threats, and business service classification; identify malicious actors, understand their tactics and techniques, and track threat campaigns; monitor active exploitation of CVEs in the wild and analyze vulnerability trends; explore GreyNoise's extensive tagging system to understand different types of internet activity and threat patterns; use GreyNoise Query Language (GNQL) for advanced searches and statistical analysis; analyze multiple IP addresses simultaneously for efficient threat hunting. The extension is particularly valuable for security researchers, threat analysts, incident responders, and anyone needing to distinguish between legitimate internet traffic and potential threats. It helps answer critical questions like \\\"Is this IP address malicious?\\\" and \\\"What vulnerabilities are being actively exploited?\\\"\\n\\nRequires a GreyNoise API key for full functionality.",
+  "long_description": "This extension provides comprehensive access to GreyNoise's threat intelligence platform, enabling Claude to analyze internet-scanning IP addresses, track threat actors, investigate vulnerabilities, and generate security insights. GreyNoise specializes in identifying and categorizing internet background noise - the automated scanning, crawling, and exploitation attempts that occur constantly across the internet.\n\nCapabilities include:\n- IP address context with Internet Scanner Intelligence (ISI) and Business Service Intelligence (BSI)\n- Quick checks and bulk multi-IP analysis (up to 10,000 IPs)\n- GNQL (GreyNoise Query Language) for advanced searching with full or metadata-only results\n- Recall/timeseries analysis for temporal IP activity patterns\n- Tag browsing, search, and activity analysis\n- CVE details and trending vulnerability tracking\n- Multiple analysis prompts for threat hunting, vendor assessment, and security posture\n\nRequires a GreyNoise API key for full functionality.",
   "author": {
-    "name": "GreyNoise Labs <research@greynoise.io>",
+    "name": "GreyNoise Labs",
     "email": "research@greynoise.io",
     "url": "https://greynoise.io/"
   },
   "homepage": "https://greynoise.io/",
   "documentation": "https://www.npmjs.com/package/@greynoise/greynoise-mcp-server",
+  "support": "https://github.com/GreyNoise-Intelligence/greynoise-mcp-server/issues",
   "icon": "icon.png",
   "server": {
     "type": "node",
@@ -42,7 +44,9 @@
     "vulnerability-research",
     "malware",
     "scanning",
-    "threat-hunting"
+    "threat-hunting",
+    "greynoise",
+    "mcp"
   ],
   "license": "MIT",
   "repository": {

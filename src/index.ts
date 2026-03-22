@@ -56,8 +56,11 @@ import {
   registerLookupIPContextTool,
   registerQuickCheckIPTool,
   registerMultiIPCheckTool,
-  registerRiotLookupTool,
   registerGnqlStatsTool,
+  registerGnqlQueryTool,
+  registerGnqlMetadataQueryTool,
+  registerGnqlTimeseriesTool,
+  registerGnqlTimeseriesStatsTool,
   registerGetCVEDetailsTool,
 } from "./tools/index.js";
 
@@ -132,9 +135,10 @@ const server = new McpServer({
   instructions: `This MCP server provides comprehensive access to GreyNoise Intelligence data on IP addresses scanning the internet or attempting to exploit vulnerabilities, along with information about GreyNoise's detection capabilities:
 
 - Tags: retrieve comprehensive metadata about detection coverage including tag details, activity, and trending vulnerabilities.
-- IP addresses: retrieve comprehensive metadata about IP addresses including activity and intention, quick IP checks, multi-IP checking, and RIOT business service lookups.
-- CVEs: similar to tags, retrieve information on GreyNoise CVE coverage and internet activity
-- GNQL: enables querying GreyNoise's database using a powerful domain-specific query language to retrieve information about IP addresses, tags, and vulnerabilities.
+- IP addresses: retrieve comprehensive metadata about IP addresses including Internet Scanner Intelligence (scanning activity, classification, raw scan data) and Business Service Intelligence (BSI - known business services, trust levels). Supports single IP lookup, quick checks, and bulk multi-IP checking.
+- CVEs: retrieve information on GreyNoise CVE coverage and internet exploitation activity.
+- GNQL: search GreyNoise's database using a powerful domain-specific query language. Full query (with raw scan data) and metadata-only query (lighter, without raw data) are available.
+- Recall: temporal analysis of IP activity via timeseries endpoints. Retrieve hourly records or aggregated unique IP counts over time ranges.
 
 Each tool provides structured, formatted output for easy analysis and integration.
   `,
@@ -158,8 +162,11 @@ registerGetTrendingVulnerabilitiesTool(server, GREYNOISE_API_BASE, getStaticApiK
 registerLookupIPContextTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerQuickCheckIPTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerMultiIPCheckTool(server, GREYNOISE_API_BASE, getStaticApiKey);
-registerRiotLookupTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerGnqlStatsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGnqlQueryTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGnqlMetadataQueryTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGnqlTimeseriesTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGnqlTimeseriesStatsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerGetCVEDetailsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 
 // Register all prompts
