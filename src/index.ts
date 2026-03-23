@@ -62,6 +62,9 @@ import {
   registerGnqlTimeseriesTool,
   registerGnqlTimeseriesStatsTool,
   registerGetCVEDetailsTool,
+  registerGetSessionTool,
+  registerGetSessionPcapTool,
+  registerExportSessionsPcapTool,
 } from "./tools/index.js";
 
 // Import prompt registration functions
@@ -127,7 +130,7 @@ function checkAuthorization(req: any, res: any, next: any): void {
 // Create MCP Server
 const server = new McpServer({
   name: "greynoise-mcp",
-  version: "0.1.0",
+  version: "0.4.0",
   capabilities: {
     tools: {},
     prompts: {},
@@ -139,6 +142,7 @@ const server = new McpServer({
 - CVEs: retrieve information on GreyNoise CVE coverage and internet exploitation activity.
 - GNQL: search GreyNoise's database using a powerful domain-specific query language. Full query (with raw scan data) and metadata-only query (lighter, without raw data) are available.
 - Recall: temporal analysis of IP activity via timeseries endpoints. Retrieve hourly records or aggregated unique IP counts over time ranges.
+- Sessions: access raw network session data captured by GreyNoise sensors. Retrieve session metadata, download PCAP captures for individual sessions, or export PCAPs for multiple sessions matching query criteria.
 
 Each tool provides structured, formatted output for easy analysis and integration.
   `,
@@ -168,6 +172,9 @@ registerGnqlMetadataQueryTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerGnqlTimeseriesTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerGnqlTimeseriesStatsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 registerGetCVEDetailsTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGetSessionTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerGetSessionPcapTool(server, GREYNOISE_API_BASE, getStaticApiKey);
+registerExportSessionsPcapTool(server, GREYNOISE_API_BASE, getStaticApiKey);
 
 // Register all prompts
 registerVendorThreatReportPrompt(server);

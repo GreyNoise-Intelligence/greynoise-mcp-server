@@ -14,3 +14,6 @@ export * from './gnql-metadata-query.js';
 export * from './gnql-timeseries.js';
 export * from './gnql-timeseries-stats.js';
 export * from './get-cve-details.js';
+export * from './get-session.js';
+export * from './get-session-pcap.js';
+export * from './export-sessions-pcap.js';

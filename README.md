@@ -115,6 +115,14 @@ node @greynoise/greynoise-mcp-server --transport http
 
 15. **get-cve-details** - Get detailed CVE information including GreyNoise exploitation observations.
 
+### Sessions (PCAP)
+
+16. **get-session** - Get full metadata and connection details for a single sensor session by ID.
+
+17. **get-session-pcap** - Download the raw PCAP capture for a single session. Saves to a temporary file and returns the path.
+
+18. **export-sessions-pcap** - Export a PCAP file containing packets from multiple sessions matching a time range and optional Lucene query. Saves to a temporary file and returns the path.
+
 ## Usage Examples
 
 ### IP Analysis
@@ -151,6 +159,19 @@ node @greynoise/greynoise-mcp-server --transport http
 
 // Daily unique IP counts for malicious activity
 { "tool_name": "gnql-timeseries-stats", "parameters": { "query": "classification:malicious", "interval": "day" } }
+```
+
+### Sessions
+
+```javascript
+// Get session metadata
+{ "tool_name": "get-session", "parameters": { "session_id": "7e98a36cf76f29a020876691892c5f" } }
+
+// Download session PCAP
+{ "tool_name": "get-session-pcap", "parameters": { "session_id": "7e98a36cf76f29a020876691892c5f" } }
+
+// Export PCAPs for sessions matching a query
+{ "tool_name": "export-sessions-pcap", "parameters": { "start_time": "2026-01-01T00:00:00Z", "end_time": "2026-01-07T23:59:59Z", "query": "destination.port:443", "size": 50 } }
 ```
 
 ## Available Prompts

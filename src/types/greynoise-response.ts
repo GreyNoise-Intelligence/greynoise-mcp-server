@@ -620,3 +620,39 @@ export interface GnqlTimeseriesStatsResponse {
     count: number;
   }>;
 }
+
+// ─── v3 Session Types ─────────────────────────────────────────────────────────
+
+/**
+ * A network session captured by GreyNoise sensors.
+ * Sessions contain network flow data, protocol details, and enrichment metadata.
+ * The full set of fields is dynamic and can be discovered via /v3/sessions/fields.
+ */
+export interface SessionResponse {
+  /** Unique session identifier */
+  _id: string;
+  /** Timestamp of the first packet in the session */
+  firstPacket: string;
+  /** Timestamp of the last packet in the session */
+  lastPacket: string;
+  /** Source IP address */
+  "source.ip": string;
+  /** Source port number */
+  "source.port": number;
+  /** Destination IP address */
+  "destination.ip": string;
+  /** Destination port number */
+  "destination.port": number;
+  /** Total bytes sent from source */
+  "source.bytes": number;
+  /** Total packets sent from source */
+  "source.packets": number;
+  /** Total bytes sent from destination */
+  "destination.bytes": number;
+  /** Total packets sent from destination */
+  "destination.packets": number;
+  /** GreyNoise classification of the source IP */
+  classification?: string;
+  /** Dynamic additional fields */
+  [key: string]: any;
+}

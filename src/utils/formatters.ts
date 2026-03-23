@@ -8,6 +8,7 @@ import {
   GnqlTimeseriesResponse,
   GnqlTimeseriesStatsResponse,
   CVEDetailsResponse,
+  SessionResponse,
 } from "../types/greynoise-response.js";
 
 /**
@@ -230,6 +231,73 @@ export function formatTrendingTags(data: { count: number; tags: any[] }): string
     }
     response += "\n";
   });
+
+  return response;
+}
+
+// ─── v3 Session Formatter ─────────────────────────────────────────────────────
+
+function formatTimestamp(value: any): string {
+  if (value === undefined || value === null) return "N/A";
+  if (typeof value === "number") return new Date(value).toISOString();
+  return String(value);
+}
+
+// Fields promoted into structured sections (excluded from "Additional")
+const SESSION_PROMOTED_FIELDS = new Set([
+  "_id", "id",
+  "firstPacket", "lastPacket",
+  "source", "destination",
+  "source.ip", "source.port", "source.bytes", "source.packets",
+  "destination.ip", "destination.port", "destination.bytes", "destination.packets",
+  "classification",
+]);
+
+export function formatSession(data: SessionResponse): string {
+  const id = data._id ?? data["id"] ?? "unknown";
+  // API returns source/destination as nested objects OR flat dot-notation keys
+  const src = data.source as Record<string, any> | undefined;
+  const dst = data.destination as Record<string, any> | undefined;
+  const srcIp = src?.ip ?? data["source.ip"] ?? "N/A";
+  const srcPort = src?.port ?? data["source.port"] ?? "N/A";
+  const dstIp = dst?.ip ?? data["destination.ip"] ?? "N/A";
+  const dstPort = dst?.port ?? data["destination.port"] ?? "N/A";
+  const srcBytes = src?.bytes ?? data["source.bytes"] ?? 0;
+  const srcPackets = src?.packets ?? data["source.packets"] ?? 0;
+  const dstBytes = dst?.bytes ?? data["destination.bytes"] ?? 0;
+  const dstPackets = dst?.packets ?? data["destination.packets"] ?? 0;
+  const classification = data.classification;
+  const firstPacket = data.firstPacket;
+  const lastPacket = data.lastPacket;
+
+  let response = `# Session: ${id}\n\n`;
+
+  response += `## Connection\n\n`;
+  response += `**Source**: ${srcIp}:${srcPort}\n`;
+  response += `**Destination**: ${dstIp}:${dstPort}\n`;
+  if (classification) response += `**Classification**: ${classification}\n`;
+  response += `\n`;
+
+  response += `## Timing\n\n`;
+  response += `**First Packet**: ${formatTimestamp(firstPacket)}\n`;
+  response += `**Last Packet**: ${formatTimestamp(lastPacket)}\n\n`;
+
+  response += `## Traffic\n\n`;
+  response += `| Direction | Bytes | Packets |\n`;
+  response += `|--|--|--|\n`;
+  response += `| Source | ${Number(srcBytes).toLocaleString()} | ${Number(srcPackets).toLocaleString()} |\n`;
+  response += `| Destination | ${Number(dstBytes).toLocaleString()} | ${Number(dstPackets).toLocaleString()} |\n\n`;
+
+  // Append any additional dynamic fields
+  const extraFields = Object.entries(data).filter(([key]) => !SESSION_PROMOTED_FIELDS.has(key));
+  if (extraFields.length > 0) {
+    response += `## Additional Fields\n\n`;
+    for (const [key, value] of extraFields) {
+      const displayValue = typeof value === "object" ? JSON.stringify(value) : String(value);
+      response += `**${key}**: ${displayValue}\n`;
+    }
+    response += `\n`;
+  }
 
   return response;
 }

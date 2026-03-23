@@ -12,7 +12,7 @@ export default defineConfig({
   bundle: true,
   splitting: false,
   banner: {
-    js: '#!/usr/bin/env node'
+    js: '#!/usr/bin/env node\nimport { createRequire } from "module";\nconst require = createRequire(import.meta.url);'
   },
   onSuccess: async () => {
     // Clean up any extra directories from previous builds

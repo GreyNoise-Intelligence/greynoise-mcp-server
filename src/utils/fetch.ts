@@ -1,8 +1,11 @@
 import fetch from "node-fetch";
+import { createWriteStream } from "fs";
+import { unlink, stat } from "fs/promises";
+import { pipeline } from "stream/promises";
 
 // Package info for User-Agent
 const PACKAGE_NAME = "@greynoise/greynoise-mcp-server";
-const PACKAGE_VERSION = "0.3.4";
+const PACKAGE_VERSION = "0.4.0";
 const USER_AGENT = `${PACKAGE_NAME}/${PACKAGE_VERSION}`;
 
 /**
@@ -123,6 +126,71 @@ export async function postToGreyNoise<T>(
     console.error(`Error posting to GreyNoise API: ${error instanceof Error ? error.message : String(error)}`);
     console.error(`URL: ${url.toString()}`);
     console.error(`Body: ${JSON.stringify(body)}`);
+    console.error(`API Key provided: ${GREYNOISE_API_KEY ? "Yes (length: " + GREYNOISE_API_KEY.length + ")" : "No"}`);
+    throw error;
+  }
+}
+
+/**
+ * Makes an authenticated GET request to the GreyNoise API and streams the
+ * binary response body to a file on disk.
+ *
+ * @param {string} endpoint - The API endpoint to call (without the base URL)
+ * @param {string} GREYNOISE_API_BASE - The base URL for the GreyNoise API
+ * @param {string} GREYNOISE_API_KEY - The API key for authenticating with GreyNoise
+ * @param {string} outputPath - Absolute path where the file will be written
+ * @param {Record<string, string>} [params={}] - Optional query parameters
+ * @returns {Promise<{ filePath: string; fileSize: number }>} The written file path and size in bytes
+ * @throws {Error} If the API request fails or the file cannot be written
+ */
+export async function fetchGreyNoiseBinary(
+  endpoint: string,
+  GREYNOISE_API_BASE: string,
+  GREYNOISE_API_KEY: string,
+  outputPath: string,
+  params: Record<string, string> = {},
+): Promise<{ filePath: string; fileSize: number }> {
+  const url = new URL(`${GREYNOISE_API_BASE}${endpoint}`);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      url.searchParams.append(key, String(value));
+    }
+  });
+
+  try {
+    const response = await fetch(url.toString(), {
+      headers: {
+        key: GREYNOISE_API_KEY,
+        Accept: "application/vnd.tcpdump.pcap",
+        "User-Agent": USER_AGENT,
+      },
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text().catch(() => "Could not parse error response");
+      throw new Error(`GreyNoise API error: ${response.status} - ${errorText}`);
+    }
+
+    if (!response.body) {
+      throw new Error("GreyNoise API returned an empty response body");
+    }
+
+    // Stream the response body to disk
+    const fileStream = createWriteStream(outputPath);
+    try {
+      await pipeline(response.body, fileStream);
+    } catch (writeError) {
+      // Clean up partial file on write failure
+      await unlink(outputPath).catch(() => {});
+      throw writeError;
+    }
+
+    const fileStats = await stat(outputPath);
+    return { filePath: outputPath, fileSize: fileStats.size };
+  } catch (error) {
+    console.error(`Error fetching binary from GreyNoise API: ${error instanceof Error ? error.message : String(error)}`);
+    console.error(`URL: ${url.toString()}`);
     console.error(`API Key provided: ${GREYNOISE_API_KEY ? "Yes (length: " + GREYNOISE_API_KEY.length + ")" : "No"}`);
     throw error;
   }
