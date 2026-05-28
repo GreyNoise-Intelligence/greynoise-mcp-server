@@ -97,15 +97,12 @@ Examples:
           }
         })();
 
-        // Encode the GNQL query for URL
-        const encodedQuery = encodeURIComponent(query);
-
         // Get statistics for the query
         const statsData = await fetchGreyNoise<GnqlStatsResponse>(
-          `v2/experimental/gnql/stats?query=${encodedQuery}&count=${count}`,
+          `v3/gnql/stats`,
           apiBase,
           apiKey,
-          {},
+          { query, count },
         );
 
         // Format a readable response

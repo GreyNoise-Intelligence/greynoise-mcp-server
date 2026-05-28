@@ -24,6 +24,9 @@ import {
 export function formatGnqlStats(data: GnqlStatsResponse): string {
   let response = `# GNQL Stats Results\n\n`;
   response += `Query: \`${data.query}\`\n\n`;
+  if (data.adjusted_query) {
+    response += `Adjusted Query: \`${data.adjusted_query}\`\n\n`;
+  }
   response += `Found ${data.count.toLocaleString()} matching IPs.\n\n`;
 
   // Add classification breakdown
@@ -102,7 +105,7 @@ export function formatGnqlStats(data: GnqlStatsResponse): string {
   if (data.stats.operating_systems && data.stats.operating_systems.length > 0) {
     response += `## Operating Systems\n\n`;
     for (const item of data.stats.operating_systems) {
-      response += `- **${item.os}**: ${item.count.toLocaleString()} IPs\n`;
+      response += `- **${item.operating_system}**: ${item.count.toLocaleString()} IPs\n`;
     }
     response += `\n`;
   }

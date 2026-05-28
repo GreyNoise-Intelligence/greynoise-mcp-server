@@ -1059,7 +1059,7 @@ Request:
 
 ```bash
 curl --request GET \
-     --url 'https://api.greynoise.io/v2/experimental/gnql/stats?query=classification%3A%20malicious&count=5' \
+     --url 'https://api.greynoise.io/v3/gnql/stats?query=classification%3A%20malicious&count=5' \
      --header 'accept: application/json' \
      --header 'key: GREYNOISE_API_KEY'
 ```

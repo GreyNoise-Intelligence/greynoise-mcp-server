@@ -12,19 +12,62 @@
  *                If not provided, tests all tools.
  */
 
-import { getGreyNoiseApiKey, getGreyNoiseApiBase } from "./build/utils/api-key.js";
-import { fetchGreyNoise, postToGreyNoise } from "./build/utils/fetch.js";
+import fetch from "node-fetch";
 
 // Get API credentials
-const GREYNOISE_API_BASE = getGreyNoiseApiBase();
-let GREYNOISE_API_KEY;
+const GREYNOISE_API_BASE = "https://api.greynoise.io/";
+const GREYNOISE_API_KEY = process.env.GREYNOISE_API_KEY || "";
 
-try {
-  GREYNOISE_API_KEY = getGreyNoiseApiKey();
-} catch (error) {
-  console.error(`Error: ${error instanceof Error ? error.message : String(error)}`);
+if (GREYNOISE_API_KEY === "") {
+  console.error("Error: GREYNOISE_API_KEY is required.");
   console.error("Make sure you have set the GREYNOISE_API_KEY environment variable");
   process.exit(1);
+}
+
+async function fetchGreyNoise(endpoint, apiBase, apiKey, params = {}) {
+  const url = new URL(`${apiBase}${endpoint}`);
+
+  Object.entries(params).forEach(([key, value]) => {
+    if (value !== undefined && value !== null) {
+      url.searchParams.append(key, String(value));
+    }
+  });
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      key: apiKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Could not parse error response");
+    throw new Error(`GreyNoise API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
+}
+
+async function postToGreyNoise(endpoint, apiBase, apiKey, body) {
+  const url = new URL(`${apiBase}${endpoint}`);
+
+  const response = await fetch(url.toString(), {
+    method: "POST",
+    headers: {
+      key: apiKey,
+      "Content-Type": "application/json",
+      Accept: "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text().catch(() => "Could not parse error response");
+    throw new Error(`GreyNoise API error: ${response.status} - ${errorText}`);
+  }
+
+  return await response.json();
 }
 
 // Sample data for testing
@@ -187,7 +230,7 @@ const testCases = {
     func: async () => {
       console.log("Testing GNQL Stats endpoint");
       const query = encodeURIComponent(TEST_DATA.gnqlQuery);
-      const endpoint = `v2/experimental/gnql/stats?query=${query}&count=5`;
+      const endpoint = `v3/gnql/stats?query=${query}&count=5`;
       console.log(`Endpoint: ${endpoint}`);
       return await fetchGreyNoise(endpoint, GREYNOISE_API_BASE, GREYNOISE_API_KEY);
     },
