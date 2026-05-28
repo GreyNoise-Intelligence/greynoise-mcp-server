@@ -156,6 +156,8 @@ export interface GnqlStatsResponse {
   count: number;
   /** The original GNQL query string */
   query: string;
+  /** The executed query if the original query was adjusted due to plan limitations */
+  adjusted_query?: string;
   /** Statistical breakdowns of the query results */
   stats: {
     /** Breakdown by classification */
@@ -219,7 +221,7 @@ export interface GnqlStatsResponse {
     /** Breakdown by operating system */
     operating_systems?: Array<{
       /** Operating system name */
-      os: string;
+      operating_system: string;
       /** Number of IPs running this OS */
       count: number;
     }> | null;
