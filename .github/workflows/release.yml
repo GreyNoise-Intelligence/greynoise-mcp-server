@@ -19,6 +19,9 @@ jobs:
           cache: npm
           registry-url: "https://registry.npmjs.org"
 
+      # npm >= 11.5.1 is required for OIDC Trusted Publishing
+      - run: npm install -g npm@latest
+
       - run: npm ci
 
       - name: Verify tag matches package.json version
@@ -33,9 +36,8 @@ jobs:
       - run: npm test
       - run: npm run build
 
+      # Auth via OIDC Trusted Publishing (configured on npmjs.com) — no token needed
       - run: npm publish --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Build MCPB bundle
         run: npm run pack:mcpb

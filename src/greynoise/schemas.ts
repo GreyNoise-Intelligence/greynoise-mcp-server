@@ -62,9 +62,15 @@ export const internetScannerRawDataSchema = passthrough({
     useragent: z.array(z.string()).optional(),
     ja4h: z.array(z.string()).optional(),
   }).optional(),
-  tls: passthrough({ cipher: z.string().optional(), ja4: z.array(z.string()).optional() }).optional(),
+  tls: passthrough({
+    cipher: z.union([z.string(), z.array(z.string())]).optional(),
+    ja4: z.array(z.string()).optional(),
+  }).optional(),
   ssh: passthrough({ key: z.array(z.string()).optional(), ja4ssh: z.array(z.string()).optional() }).optional(),
-  tcp: passthrough({ ja4t: z.array(z.string()).optional(), ja4l: z.string().optional() }).optional(),
+  tcp: passthrough({
+    ja4t: z.array(z.string()).optional(),
+    ja4l: z.union([z.string(), z.array(z.string())]).optional(),
+  }).optional(),
   source: passthrough({ bytes: z.number().optional() }).optional(),
 });
 
