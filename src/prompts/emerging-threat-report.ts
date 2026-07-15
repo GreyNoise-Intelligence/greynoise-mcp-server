@@ -2,12 +2,15 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerEmergingThreatReportPrompt(server: McpServer) {
-  server.prompt(
+  server.registerPrompt(
     "emerging-threat-report",
-    "Generate a report on emerging threats based on recent activity and trending data",
     {
+      title: "Emerging Threat Report",
+      description: "Generate a report on emerging threats based on recent activity and trending data",
+      argsSchema: {
       days: z.string().optional().describe("Number of days to analyze for emerging threats (1, 7, or 30)"),
       focus_area: z.string().optional().describe("Optional focus area (e.g., 'ransomware', 'IoT', 'healthcare')"),
+    },
     },
     async (args, extra) => {
       const days = args.days || "7";

@@ -1,57 +1,26 @@
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { MultiIPV3Response } from "../types/greynoise-response.js";
-import { postToGreyNoise } from "../utils/fetch.js";
-import { formatMultiIPV3 } from "../utils/formatters.js";
-import { getApiKey } from "../utils/api-context.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defineTool } from "./define-tool.js";
+import { multiIpSchema } from "../greynoise/schemas.js";
+import { formatMultiIPV3 } from "../utils/formatters/ip.js";
 
 export function registerMultiIPCheckTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
-  server.tool(
-    "multi-ip-check",
-    "Check multiple IP addresses at once for scanner intelligence and business service classification",
-    {
-      ips: z.array(z.string().ip()).min(1).max(10000).describe("List of IP addresses to check (max 10,000)"),
+  defineTool(server, apiBase, apiKeyGetter, {
+    name: "multi-ip-check",
+    title: "Multi-IP Check",
+    description:
+      "Check up to 10,000 IP addresses at once. Returns classification, business-service status, and trust level for each, plus a summary breakdown.",
+    inputSchema: {
+      ips: z
+        .array(z.union([z.ipv4(), z.ipv6()]))
+        .min(1)
+        .max(10000)
+        .describe("List of IP addresses to check (1-10,000, IPv4 or IPv6)"),
     },
-    async ({ ips }) => {
-      try {
-        const apiKey = (() => {
-          try {
-            return getApiKey();
-          } catch {
-            return apiKeyGetter();
-          }
-        })();
-
-        const requestBody = { ips };
-
-        const multiCheckData = await postToGreyNoise<MultiIPV3Response>(
-          `v3/ip`,
-          apiBase,
-          apiKey,
-          requestBody,
-        );
-
-        const summaryText = formatMultiIPV3(multiCheckData);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: summaryText,
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error performing multi IP check: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+    outputSchema: multiIpSchema,
+    handler: async ({ ips }, { client }) => {
+      const data = await client.post("v3/ip", multiIpSchema, { ips });
+      return { text: formatMultiIPV3(data), structured: data };
     },
-  );
+  });
 }

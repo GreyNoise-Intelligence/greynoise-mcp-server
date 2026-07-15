@@ -1,5 +1,7 @@
 import { defineConfig } from 'tsup'
-import { existsSync, rmSync } from 'fs'
+import { existsSync, rmSync, readFileSync } from 'fs'
+
+const pkg = JSON.parse(readFileSync('./package.json', 'utf8'))
 
 export default defineConfig({
   entry: ['src/index.ts'],
@@ -7,6 +9,9 @@ export default defineConfig({
   target: 'node18',
   outDir: 'build',
   clean: true,
+  define: {
+    __PKG_VERSION__: JSON.stringify(pkg.version),
+  },
   minify: false, // Keep readable for debugging
   sourcemap: true,
   bundle: true,

@@ -2,13 +2,16 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerThreatHuntingPrompt(server: McpServer) {
-  server.prompt(
+  server.registerPrompt(
     "threat-hunting",
-    "Generate a threat hunting plan based on specific indicators or patterns",
     {
+      title: "Threat Hunting",
+      description: "Generate a threat hunting plan based on specific indicators or patterns",
+      argsSchema: {
       indicator_type: z.string().describe("Type of indicator to hunt for (ip, tag, behavior, actor, cve)"),
       indicator_value: z.string().describe("The specific indicator value to hunt for"),
       environment: z.string().describe("Brief description of the environment to hunt within"),
+    },
     },
     async (args, extra) => {
       const rawIndicatorType = args.indicator_type.toLowerCase();

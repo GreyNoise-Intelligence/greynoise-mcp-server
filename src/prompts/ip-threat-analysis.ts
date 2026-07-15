@@ -2,15 +2,18 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerIPThreatAnalysisPrompt(server: McpServer) {
-  server.prompt(
+  server.registerPrompt(
     "ip-threat-analysis",
-    "Generate a detailed analysis of an IP address to determine if it's malicious and associated threats",
     {
+      title: "IP Threat Analysis",
+      description: "Generate a detailed analysis of an IP address to determine if it's malicious and associated threats",
+      argsSchema: {
       ip: z.string().describe("The IP address to analyze"),
       include_related: z
         .string()
         .optional()
         .describe("Whether to include information about related IPs/networks (true/false)"),
+    },
     },
     async (args, extra) => {
       const ip = args.ip;

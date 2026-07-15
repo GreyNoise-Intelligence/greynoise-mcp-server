@@ -2,13 +2,16 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerVendorThreatReportPrompt(server: McpServer) {
-  server.prompt(
+  server.registerPrompt(
     "vendor-threat-report",
-    "Generate a comprehensive threat report for a vendor technology",
     {
+      title: "Vendor Threat Report",
+      description: "Generate a comprehensive threat report for a vendor technology",
+      argsSchema: {
       vendor: z.string().describe("The technology vendor name to analyze (e.g., 'Cisco', 'Microsoft')"),
       technology: z.string().optional().describe("Specific product or technology to focus on (optional)"),
       timeframe: z.string().describe("Number of days to look back for threat data (1-90)"),
+    },
     },
     async (args, extra) => {
       const vendor = args.vendor;

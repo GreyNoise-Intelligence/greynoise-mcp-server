@@ -1,14 +1,14 @@
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { GnqlStatsResponse } from "../types/greynoise-response.js";
-import { fetchGreyNoise } from "../utils/fetch.js";
-import { formatGnqlStats } from "../utils/formatters.js";
-import { getApiKey } from "../utils/api-context.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defineTool } from "./define-tool.js";
+import { gnqlStatsSchema } from "../greynoise/schemas/gnql.js";
+import { formatGnqlStats } from "../utils/formatters/gnql.js";
 
 export function registerGnqlStatsTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
-  server.tool(
-    "gnql-stats",
-    `
+  defineTool(server, apiBase, apiKeyGetter, {
+    name: "gnql-stats",
+    title: "GNQL Stats",
+    description: `
 Get aggregate statistics for results matching a GreyNoise GNQL query.
 
 GNQL (GreyNoise Query Language) is a domain-specific query language that uses Lucene deep under the hood.
@@ -82,51 +82,14 @@ Examples:
 - "source_country:Iran" - Returns all results originating from Iran
 - "destination_country:Ukraine single_destination:true" — Returns all results scanning in only Ukraine
 `,
-    {
+    inputSchema: {
       query: z.string().describe("GNQL query string (e.g., 'classification:malicious last_seen:30d')"),
       count: z.number().min(1).max(10000).default(10).describe("Number of top aggregate results to return (1-10000)"),
     },
-    async ({ query, count }) => {
-      try {
-        // Get API key from context or fallback function
-        const apiKey = (() => {
-          try {
-            return getApiKey();
-          } catch {
-            return apiKeyGetter();
-          }
-        })();
-
-        // Get statistics for the query
-        const statsData = await fetchGreyNoise<GnqlStatsResponse>(
-          `v3/gnql/stats`,
-          apiBase,
-          apiKey,
-          { query, count },
-        );
-
-        // Format a readable response
-        const formattedResponse = formatGnqlStats(statsData);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: formattedResponse,
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error querying GNQL stats: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
+    outputSchema: gnqlStatsSchema,
+    handler: async ({ query, count }, { client }) => {
+      const data = await client.get("v3/gnql/stats", gnqlStatsSchema, { query, count });
+      return { text: formatGnqlStats(data), structured: data };
     },
-  );
+  });
 }

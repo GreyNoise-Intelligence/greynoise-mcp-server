@@ -1,132 +1,68 @@
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import {
-  GreyNoiseTag,
-  TagActivityResponse,
-  GreyNoiseTagActivity,
-} from "../types/greynoise-response.js";
-import { fetchGreyNoise } from "../utils/fetch.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defineTool } from "./define-tool.js";
+import { tagActivityResultSchema, tagActivitySchema, type Tag } from "../greynoise/schemas/tags.js";
+import { formatTagActivity, type TagActivityEntry } from "../utils/formatters/tags.js";
 import { getCachedTags } from "../utils/tag-cache.js";
-import { getApiKey } from "../utils/api-context.js";
 
 export function registerGetTagActivityTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
-  server.tool(
-    "get-tag-activity",
-    "Retrieve time-series that includes unique IP counts and intention activity data for a specific GreyNoise tag or by CVE",
-    {
+  defineTool(server, apiBase, apiKeyGetter, {
+    name: "get-tag-activity",
+    title: "Get Tag Activity",
+    description:
+      "Retrieve time-series unique-IP counts and intention activity for a tag (by id/slug) or by CVE, from v3/tags/{id}/activity. Provide exactly one of id_or_slug or cve. days must be 1, 10, or 30 (default 30); granularity is 1h for 1 day, else 24h.",
+    inputSchema: {
       id_or_slug: z.string().optional().describe("Tag ID or slug to retrieve activity for"),
-      cve: z.string().optional().describe("CVE identifier to retrieve activity for"),
-      days: z
-        .enum(["1", "10", "30"])
-        .default("30")
-        .describe("Number of days of activity to retrieve (must be 1, 10, or 30)"),
+      cve: z.string().optional().describe("CVE identifier to retrieve activity for (matches associated tags)"),
+      days: z.enum(["1", "10", "30"]).default("30").describe("Days of activity: 1, 10, or 30"),
     },
-    async ({ id_or_slug, cve, days }) => {
-      try {
-        // Get API key from context or fallback function
-        const apiKey = (() => {
-          try {
-            return getApiKey();
-          } catch {
-            return apiKeyGetter();
-          }
-        })();
+    outputSchema: tagActivityResultSchema,
+    handler: async ({ id_or_slug, cve, days }, { client }) => {
+      if (!id_or_slug && !cve) throw new Error("Either id_or_slug or cve parameter must be provided.");
 
-        if (!id_or_slug && !cve) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: "Either id_or_slug or cve parameter must be provided.",
-              },
-            ],
-            isError: true,
-          };
-        }
+      const tags = await getCachedTags(client);
 
-        // Get all tags from cache or API
-        const tags = await getCachedTags(apiBase, apiKey);
-
-        // Find matching tag(s)
-        let matchingTags: GreyNoiseTag[] = [];
-
-        if (id_or_slug) {
-          const tag = tags.find(
-            (t: GreyNoiseTag) => t.id === id_or_slug || t.slug === id_or_slug || t.slug === id_or_slug.toLowerCase(),
-          );
-          if (tag) matchingTags.push(tag);
-        } else if (cve) {
-          // Search by CVE
-          const lowerCve = cve.toLowerCase();
-          matchingTags = tags.filter((tag: GreyNoiseTag) =>
-            tag.cves.some((c: string) => c.toLowerCase() === lowerCve || c.toLowerCase().includes(lowerCve)),
-          );
-        }
-
-        if (matchingTags.length === 0) {
-          return {
-            content: [
-              {
-                type: "text",
-                text: id_or_slug ? `Tag with ID or slug "${id_or_slug}" not found.` : `No tags found for CVE "${cve}".`,
-              },
-            ],
-            isError: true,
-          };
-        }
-
-        // Convert days string to number
-        const daysNum = parseInt(days, 10);
-
-        // Set granularity based on days
-        const granularity = daysNum === 1 ? "1h" : "24h";
-
-        // Get activity data for all matching tags
-        const results = await Promise.all(
-          matchingTags.map(async (tag) => {
-            const activityData = await fetchGreyNoise<TagActivityResponse>(
-              `v3/tags/${tag.id}/activity`,
-              apiBase,
-              apiKey,
-              {
-                days: daysNum,
-                granularity,
-              },
-            );
-
-            return {
-              tag: {
-                id: tag.id,
-                name: tag.name,
-                slug: tag.slug,
-                category: tag.category,
-                intention: tag.intention,
-                cves: tag.cves,
-              },
-              activity: activityData,
-            };
-          }),
+      let matchingTags: Tag[] = [];
+      if (id_or_slug) {
+        const tag = tags.find(
+          (t) => t.id === id_or_slug || t.slug === id_or_slug || t.slug === id_or_slug.toLowerCase(),
         );
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: JSON.stringify(results, null, 2),
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error retrieving tag activity: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
+        if (tag) matchingTags.push(tag);
+      } else if (cve) {
+        const v = cve.toLowerCase();
+        matchingTags = tags.filter((tag) =>
+          (tag.cves ?? []).some((c) => c.toLowerCase() === v || c.toLowerCase().includes(v)),
+        );
       }
+
+      if (matchingTags.length === 0) {
+        throw new Error(id_or_slug ? `Tag with ID or slug "${id_or_slug}" not found.` : `No tags found for CVE "${cve}".`);
+      }
+
+      const daysNum = parseInt(days, 10);
+      const granularity = daysNum === 1 ? "1h" : "24h";
+
+      const results: TagActivityEntry[] = await Promise.all(
+        matchingTags.map(async (tag) => {
+          const activity = await client.get(`v3/tags/${tag.id}/activity`, tagActivitySchema, {
+            days: daysNum,
+            granularity,
+          });
+          return {
+            tag: {
+              id: tag.id,
+              name: tag.name,
+              slug: tag.slug,
+              category: tag.category,
+              intention: tag.intention,
+              cves: tag.cves,
+            },
+            activity,
+          };
+        }),
+      );
+
+      return formatTagActivity(results);
     },
-  );
+  });
 }
