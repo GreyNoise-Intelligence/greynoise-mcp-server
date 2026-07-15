@@ -1,7 +1,7 @@
 type Level = "debug" | "info" | "warn" | "error";
 
 function emit(level: Level, message: string, fields?: Record<string, unknown>): void {
-  const record = { level, message, ...fields, ts: new Date().toISOString() };
+  const record = { ...fields, level, message, ts: new Date().toISOString() };
   process.stderr.write(JSON.stringify(record) + "\n");
 }
 

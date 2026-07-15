@@ -2,6 +2,7 @@ import fetch from "node-fetch";
 import { createWriteStream } from "fs";
 import { unlink, stat } from "fs/promises";
 import { pipeline } from "stream/promises";
+import { createHash } from "crypto";
 import { z } from "zod";
 import { logger } from "../utils/logger.js";
 import { GreyNoiseApiError } from "./errors.js";
@@ -27,6 +28,11 @@ export class GreyNoiseClient {
     private readonly apiBase: string,
     private readonly apiKeyGetter: () => string,
   ) {}
+
+  /** Stable, non-reversible identity for the current API key — safe to use as a cache key. */
+  cacheKey(): string {
+    return createHash("sha256").update(this.apiKeyGetter()).digest("hex");
+  }
 
   private buildUrl(endpoint: string, params?: Record<string, unknown>): URL {
     const url = new URL(`${this.apiBase.replace(/\/$/, "")}/${endpoint.replace(/^\//, "")}`);
@@ -60,7 +66,7 @@ export class GreyNoiseClient {
 
         if (response.status === 429 || response.status >= 500) {
           lastError = new GreyNoiseApiError(response.status, endpoint, `retryable status ${response.status}`);
-          await this.backoff(attempt, response.headers.get("retry-after"));
+          if (attempt < MAX_RETRIES) await this.backoff(attempt, response.headers.get("retry-after"));
           continue;
         }
         if (!response.ok) {
@@ -100,9 +106,16 @@ export class GreyNoiseClient {
   }
 
   private async backoff(attempt: number, retryAfter: string | null): Promise<void> {
-    const retryAfterMs = retryAfter ? Number(retryAfter) * 1000 : 0;
-    const delay = Math.max(retryAfterMs, 2 ** attempt * 250);
+    const delay = Math.max(this.retryAfterMs(retryAfter), 2 ** attempt * 250);
     await new Promise((resolve) => setTimeout(resolve, delay));
+  }
+
+  private retryAfterMs(retryAfter: string | null): number {
+    if (!retryAfter) return 0;
+    const seconds = Number(retryAfter);
+    if (Number.isFinite(seconds)) return Math.max(0, seconds * 1000);
+    const dateMs = Date.parse(retryAfter);
+    return Number.isNaN(dateMs) ? 0 : Math.max(0, dateMs - Date.now());
   }
 
   get<T>(endpoint: string, schema: z.ZodType<T>, params?: Record<string, unknown>): Promise<T> {
