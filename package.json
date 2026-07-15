@@ -9,6 +9,7 @@
   },
   "scripts": {
     "prebuild": "node scripts/sync-version.mjs",
+    "version": "node scripts/sync-version.mjs && git add manifest.json",
     "build": "tsup && chmod 755 build/index.js",
     "pack:mcpb": "npx --yes @anthropic-ai/mcpb pack",
     "typecheck": "tsc --noEmit",

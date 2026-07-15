@@ -57,7 +57,42 @@ This project uses `tsup` for modern bundling:
 - **`npm run build:dev`**: Development build with source maps
 - **`npm run dev`**: Watch mode with auto-rebuild
 
-The bundled output includes all core dependencies except Express (for HTTP transport) and dotenv (due to dynamic require limitations).
+The bundled output includes all core dependencies except Express (kept external for the optional HTTP transport).
+
+## Releasing
+
+Releases are automated via GitHub Actions, with a manual approval gate. There are two workflows:
+
+- **`.github/workflows/ci.yml`** — runs on every PR/push: typecheck, tests, build, `npm audit`, and a `.mcpb` build. No credentials required.
+- **`.github/workflows/release.yml`** — runs on a `v*` tag: publishes to npm via **staged publishing** and drafts a GitHub Release with the `.mcpb`. Nothing goes public without a human.
+
+### Prerequisites (one-time, already configured)
+
+- **npm Trusted Publisher (OIDC)** — configured on npmjs.com for this repo + `release.yml` with **`npm stage publish`** (stage-only) permission. No `NPM_TOKEN` secret is stored; auth is tokenless via GitHub OIDC.
+- The workflow has `id-token: write` (OIDC) and `contents: write` (GitHub Release) permissions and upgrades npm to satisfy staged-publishing requirements (npm ≥ 11.15.0, Node ≥ 22.14).
+
+### Cutting a release
+
+1. Merge your work to `main`.
+2. Bump the version (single source of truth is `package.json`; the `version` script keeps `manifest.json` in sync, and the User-Agent is injected from it at build time):
+   ```bash
+   npm version minor        # or patch / major — creates the commit + vX.Y.Z tag
+   git push --follow-tags
+   ```
+   The tag must match `package.json`; the workflow fails otherwise.
+3. The tag triggers `release.yml`, which **stages** the version to npm and creates a **draft** GitHub Release. Neither is public yet.
+
+### Approving (the manual gate)
+
+Staged publishes require a maintainer with 2FA — they can't be approved from CI (by design). After the workflow succeeds:
+
+```bash
+npm stage list @greynoise/greynoise-mcp-server   # find the stage-id
+npm stage view <stage-id>                         # (optional) inspect it
+npm stage approve <stage-id>                       # 2FA prompt → version goes live on npm
+```
+
+(You can also approve from the package page on npmjs.com.) Then publish the draft GitHub Release from the repo's Releases tab when you're ready to make the `.mcpb` public.
 
 ## Transport Options
 
