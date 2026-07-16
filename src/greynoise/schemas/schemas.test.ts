@@ -47,4 +47,39 @@ describe("response schema validation", () => {
     expect(() => gnqlStatsSchema.parse(validStats)).not.toThrow();
     expect(() => gnqlStatsSchema.parse({ ...validStats, count: "not-a-number" })).toThrow();
   });
+
+  it("parses ISI tags that use `created` and omit `created_at`", () => {
+    const payload = {
+      ...validContext,
+      internet_scanner_intelligence: {
+        classification: "malicious",
+        tags: [
+          {
+            id: "t1",
+            slug: "favicon-scanner",
+            name: "Favicon Scanner",
+            category: "activity",
+            intention: "unknown",
+            description: "",
+            references: [],
+            recommend_block: false,
+            cves: [],
+            created: "2026-04-17T00:00:00Z",
+            updated_at: "2026-07-16T00:00:00Z",
+          },
+        ],
+      },
+    };
+    const parsed = ipContextSchema.parse(payload);
+    expect(parsed.internet_scanner_intelligence.tags?.[0].name).toBe("Favicon Scanner");
+  });
+
+  it("parses gnql stats with null stat buckets", () => {
+    const parsed = gnqlStatsSchema.parse({
+      count: 1,
+      query: "ip:1.2.3.4",
+      stats: { actors: null, classifications: null, operating_systems: null },
+    });
+    expect(parsed.count).toBe(1);
+  });
 });

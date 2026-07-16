@@ -22,8 +22,9 @@ export const internetScannerTagSchema = passthrough({
   references: z.array(z.string()),
   recommend_block: z.boolean(),
   cves: z.array(z.string()),
-  created_at: z.string(),
-  updated_at: z.string(),
+  created: z.string().optional(),
+  created_at: z.string().optional(),
+  updated_at: z.string().optional(),
 });
 
 export const internetScannerMetadataSchema = passthrough({
