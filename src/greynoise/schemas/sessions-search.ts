@@ -100,9 +100,10 @@ export const sessionUniqueValuesSchema = passthrough({
 });
 
 export const sessionExportFileSchema = passthrough({
-  filePath: z.string(),
-  fileSize: z.number(),
-  type: z.string(),
+  available: z.boolean().optional(),
+  filePath: z.string().optional(),
+  fileSize: z.number().optional(),
+  type: z.string().optional(),
 });
 
 export type SessionsResponse = z.infer<typeof sessionsResponseSchema>;

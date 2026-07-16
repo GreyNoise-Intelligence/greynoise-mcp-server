@@ -6,6 +6,7 @@ import { join } from "path";
 import { unlink } from "fs/promises";
 import { defineTool } from "./define-tool.js";
 import { pcapFileSchema } from "../greynoise/schemas/sessions.js";
+import { GreyNoiseApiError } from "../greynoise/errors.js";
 
 const PCAP_HEADER_SIZE = 24;
 
@@ -27,11 +28,19 @@ export function registerGetSessionPcapTool(server: McpServer, apiBase: string, a
       if (scope) params.scope = scope;
 
       await log("info", `Downloading PCAP for session ${session_id}...`);
-      const { filePath, fileSize } = await client.getBinary(
-        `v3/sessions/${encodeURIComponent(session_id)}/frames`,
-        outputPath,
-        params,
-      );
+      let filePath: string, fileSize: number;
+      try {
+        ({ filePath, fileSize } = await client.getBinary(
+          `v3/sessions/${encodeURIComponent(session_id)}/frames`,
+          outputPath,
+          params,
+        ));
+      } catch (e) {
+        if (e instanceof GreyNoiseApiError && e.status === 404) {
+          return { text: `Session ${session_id} not found or has no captured frames.`, structured: { available: false } };
+        }
+        throw e;
+      }
 
       if (fileSize <= PCAP_HEADER_SIZE) {
         await unlink(filePath).catch(() => {});

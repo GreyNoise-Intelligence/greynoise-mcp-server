@@ -122,12 +122,12 @@ export class GreyNoiseClient {
     return Number.isNaN(dateMs) ? 0 : Math.max(0, dateMs - Date.now());
   }
 
-  get<T>(endpoint: string, schema: z.ZodType<T>, params?: Record<string, unknown>): Promise<T> {
-    return this.send(endpoint, schema, { method: "GET", params });
+  get<T>(endpoint: string, schema: z.ZodType<T>, params?: Record<string, unknown>, timeoutMs?: number): Promise<T> {
+    return this.send(endpoint, schema, { method: "GET", params, timeoutMs });
   }
 
-  post<T>(endpoint: string, schema: z.ZodType<T>, body?: unknown): Promise<T> {
-    return this.send(endpoint, schema, { method: "POST", body });
+  post<T>(endpoint: string, schema: z.ZodType<T>, body?: unknown, timeoutMs?: number): Promise<T> {
+    return this.send(endpoint, schema, { method: "POST", body, timeoutMs });
   }
 
   put<T>(endpoint: string, schema: z.ZodType<T>, body: unknown): Promise<T> {

@@ -38,10 +38,11 @@ async function callTool(client, name, args, { expectError = false } = {}) {
     const r = await client.callTool({ name, arguments: args });
     const text = r.content?.find((x) => x.type === "text")?.text ?? "";
     if (r.isError) {
-      if (isSchemaFail(text)) return record("FAIL", name, "schema/validation: " + text.slice(0, 160));
       if (isGated(text)) return record("GATED", name);
+      if (/Rate limited \(429\)|\b429\b/.test(text)) return record("WARN", name, text.slice(0, 120));
       if (expectError) return record("PASS", name, "rejected as expected");
-      return record("WARN", name, text.slice(0, 120));
+      // any other error — 4xx/5xx/timeout/schema — is a hard failure
+      return record("FAIL", name, text.slice(0, 160));
     }
     return record("PASS", name, r.structuredContent !== undefined ? "+structured" : "");
   } catch (e) {
@@ -98,7 +99,8 @@ async function main() {
     "export-sessions-pcap": { ...range, size: 1 },
     "bsi-lookup": { ip }, "bsi-bulk-lookup": { ips: [ip] },
     "bsi-trust-stats": {}, "bsi-company-stats": {}, "bsi-category-stats": {},
-    "callback-ip-lookup": { ip }, "list-callback-ips": {}, "export-callback-ips": {}, "callback-overview": {},
+    "callback-ip-lookup": { ip }, "list-callback-ips": {}, "export-callback-ips": {},
+    "callback-overview": { days: 1 },
   };
   const writeTools = new Set([
     "create-blocklist", "update-blocklist", "delete-blocklist",
@@ -154,7 +156,7 @@ async function writeRoundTrip(client, workspace_id) {
   try {
     const r = await client.callTool({ name: "create-blocklist", arguments: { workspace_id, query: "classification:malicious", name: "mcp-validate-DELETE-ME", ip_limit: 10 } });
     const text = r.content?.find((x) => x.type === "text")?.text ?? "";
-    if (r.isError) { isGated(text) ? record("GATED", "create-blocklist") : record(isSchemaFail(text) ? "FAIL" : "WARN", "create-blocklist", text.slice(0, 120)); }
+    if (r.isError) { isGated(text) ? record("GATED", "create-blocklist") : record("FAIL", "create-blocklist", text.slice(0, 120)); }
     else { blId = r.structuredContent?.id; record("PASS", "create-blocklist", "+structured"); }
   } catch (e) { record("FAIL", "create-blocklist", String(e?.message).slice(0, 120)); }
   if (blId) {
@@ -170,7 +172,7 @@ async function writeRoundTrip(client, workspace_id) {
   try {
     const r = await client.callTool({ name: "create-alert", arguments: { workspace_id, name: "mcp-validate-DELETE-ME", query: "classification:malicious", schedule: { type: "daily", time_of_day: "09:00" }, recipients: [{ type: "email", value: "noreply@greynoise.io" }] } });
     const text = r.content?.find((x) => x.type === "text")?.text ?? "";
-    if (r.isError) { isGated(text) ? record("GATED", "create-alert") : record(isSchemaFail(text) ? "FAIL" : "WARN", "create-alert", text.slice(0, 120)); }
+    if (r.isError) { isGated(text) ? record("GATED", "create-alert") : record("FAIL", "create-alert", text.slice(0, 120)); }
     else { alId = r.structuredContent?.id; record("PASS", "create-alert", "+structured"); }
   } catch (e) { record("FAIL", "create-alert", String(e?.message).slice(0, 120)); }
   if (alId) {

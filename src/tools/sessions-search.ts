@@ -4,6 +4,7 @@ import { randomUUID } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";
 import { defineTool } from "./define-tool.js";
+import { GreyNoiseApiError } from "../greynoise/errors.js";
 import {
   sessionsResponseSchema,
   sessionFieldsResponseSchema,
@@ -272,13 +273,21 @@ export function registerSessionSearchTools(server: McpServer, apiBase: string, a
       const ext = fmt === "pcap" ? "pcap" : "bin";
       const outputPath = join(tmpdir(), `greynoise-session-${randomUUID()}.${ext}`);
       await log("info", `Exporting session ${session_id} as ${fmt}...`);
-      const { filePath, fileSize } = await client.getBinary(
-        `v3/sessions/${encodeURIComponent(session_id)}/export`,
-        outputPath,
-        { type, scope },
-        fmt === "pcap" ? "application/vnd.tcpdump.pcap" : "application/octet-stream",
-      );
-      const structured = { filePath, fileSize, type: fmt };
+      let filePath: string, fileSize: number;
+      try {
+        ({ filePath, fileSize } = await client.getBinary(
+          `v3/sessions/${encodeURIComponent(session_id)}/export`,
+          outputPath,
+          { type, scope },
+          fmt === "pcap" ? "application/vnd.tcpdump.pcap" : "application/octet-stream",
+        ));
+      } catch (e) {
+        if (e instanceof GreyNoiseApiError && e.status === 404) {
+          return { text: `No exportable data for session ${session_id}.`, structured: { available: false } };
+        }
+        throw e;
+      }
+      const structured = { available: true, filePath, fileSize, type: fmt };
       let text = `# Session Data Export\n\n`;
       text += `**Session**: ${session_id}\n**Type**: ${fmt}\n**File**: ${filePath}\n**Size**: ${fileSize.toLocaleString()} bytes\n`;
       return { text, structured };
