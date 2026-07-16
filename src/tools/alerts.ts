@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { GreyNoiseClient } from "../greynoise/client.js";
 import { defineTool } from "./define-tool.js";
 import {
   alertSchema,
@@ -13,7 +14,22 @@ import {
 const wid = z.string().describe("Workspace ID (UUID) that owns the alert");
 const aid = z.string().describe("Alert ID (UUID)");
 const v2 = (id: string) => `v2/workspaces/${encodeURIComponent(id)}/alerts`;
-const v1 = (id: string) => `v1/workspaces/${encodeURIComponent(id)}/alerts`;
+
+// v2 alerts have no dedicated enable/disable endpoint — toggle via a full update
+// (a partial update would clobber the alert's other fields).
+async function setAlertEnabled(client: GreyNoiseClient, workspace_id: string, alert_id: string, enabled: boolean) {
+  const path = `${v2(workspace_id)}/${encodeURIComponent(alert_id)}`;
+  const a = await client.get(path, alertSchema);
+  const body = {
+    name: a.name ?? "",
+    enabled,
+    query_workspace_id: a.query_workspace_id,
+    parameters: [{ type: "query", value: a.gnql_query ?? "" }],
+    schedule: a.schedule ?? { type: "daily" },
+    recipients: (a.recipients ?? []).map((r) => ({ type: r.type, value: r.value })),
+  };
+  return client.put(path, alertSchema, body);
+}
 
 const recipientsSchema = z
   .array(
@@ -141,10 +157,10 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     title: "Enable Alert",
     description: "Enable (resume) a previously disabled alert.",
     inputSchema: { workspace_id: wid, alert_id: aid },
-    outputSchema: okSchema,
+    outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await client.post(`${v1(workspace_id)}/${encodeURIComponent(alert_id)}/enable`, okSchema);
+      const data = await setAlertEnabled(client, workspace_id, alert_id, true);
       return { text: `Enabled alert ${alert_id}.`, structured: data };
     },
   });
@@ -154,10 +170,10 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     title: "Disable Alert",
     description: "Disable (pause) an alert without deleting it.",
     inputSchema: { workspace_id: wid, alert_id: aid },
-    outputSchema: okSchema,
+    outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await client.post(`${v1(workspace_id)}/${encodeURIComponent(alert_id)}/disable`, okSchema);
+      const data = await setAlertEnabled(client, workspace_id, alert_id, false);
       return { text: `Disabled alert ${alert_id}.`, structured: data };
     },
   });
