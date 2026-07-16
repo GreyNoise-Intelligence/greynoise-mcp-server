@@ -18,7 +18,7 @@ export function registerGetSessionTool(server: McpServer, apiBase: string, apiKe
     handler: async ({ session_id, scope }, { client }) => {
       const params: Record<string, unknown> = {};
       if (scope) params.scope = scope;
-      const data = await client.get(`v3/sessions/${session_id}`, sessionSchema, params);
+      const data = await client.get(`v3/sessions/${encodeURIComponent(session_id)}`, sessionSchema, params);
       return { text: formatSession(data), structured: data };
     },
   });

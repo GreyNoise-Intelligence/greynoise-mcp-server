@@ -26,7 +26,7 @@ export function formatGnqlMetadataCsv(data: GnqlQuery): string {
       isi?.metadata?.source_country ?? "",
       (isi?.tags ?? []).map((tag) => tag.name).join("; "),
       (isi?.raw_data?.scan ?? []).map((scan) => `${scan.port}/${scan.protocol}`).join("; "),
-      bsi?.found ? "true" : "false",
+      bsi?.found === undefined ? "" : bsi.found ? "true" : "false",
       bsi?.name ?? "",
       bsi?.trust_level ?? "",
     ];

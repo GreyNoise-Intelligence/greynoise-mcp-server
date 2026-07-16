@@ -18,7 +18,9 @@ export function registerGetTagActivityTool(server: McpServer, apiBase: string, a
     },
     outputSchema: tagActivityResultSchema,
     handler: async ({ id_or_slug, cve, days }, { client }) => {
-      if (!id_or_slug && !cve) throw new Error("Either id_or_slug or cve parameter must be provided.");
+      if (Boolean(id_or_slug) === Boolean(cve)) {
+        throw new Error("Provide exactly one of id_or_slug or cve.");
+      }
 
       const tags = await getCachedTags(client);
 

@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { randomUUID } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";
 import { defineTool } from "./define-tool.js";
@@ -27,6 +28,46 @@ const endTime = z.string().describe("End time, ISO 8601 (e.g. 2025-01-07T23:59:5
 const query = z.string().optional().describe("Lucene query string to filter sessions");
 const bool = (dflt: boolean, desc: string) => z.boolean().optional().default(dflt).describe(desc);
 const b = (v: boolean | undefined) => (v === undefined ? undefined : String(v));
+
+function parseCsv(text: string): string[][] {
+  const rows: string[][] = [];
+  let field = "";
+  let row: string[] = [];
+  let inQuotes = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQuotes) {
+      if (c === '"') {
+        if (text[i + 1] === '"') {
+          field += '"';
+          i++;
+        } else {
+          inQuotes = false;
+        }
+      } else {
+        field += c;
+      }
+    } else if (c === '"') {
+      inQuotes = true;
+    } else if (c === ",") {
+      row.push(field);
+      field = "";
+    } else if (c === "\n" || c === "\r") {
+      if (c === "\r" && text[i + 1] === "\n") i++;
+      row.push(field);
+      field = "";
+      rows.push(row);
+      row = [];
+    } else {
+      field += c;
+    }
+  }
+  if (field.length > 0 || row.length > 0) {
+    row.push(field);
+    rows.push(row);
+  }
+  return rows;
+}
 
 export function registerSessionSearchTools(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
   defineTool(server, apiBase, apiKeyGetter, {
@@ -184,12 +225,27 @@ export function registerSessionSearchTools(server: McpServer, apiBase: string, a
         include_counts: b(include_counts),
         scope,
       });
-      const values = raw
-        .split(/\r?\n/)
-        .map((l) => l.trim())
-        .filter((l) => l.length > 0);
-      const structured = { field, include_counts: !!include_counts, total: values.length, values };
-      if (values.length === 0) {
+      const parsed = parseCsv(raw);
+      const header = parsed.length > 0 ? parsed[0].map((h) => h.trim().toLowerCase()) : [];
+      const countIdx = header.findIndex((h) => h === "count" || h.endsWith("count"));
+      const valueIdx = header.findIndex((_, i) => i !== countIdx);
+      const vIdx = valueIdx >= 0 ? valueIdx : 0;
+      const cIdx = countIdx >= 0 ? countIdx : include_counts ? 1 : -1;
+      const rows = parsed
+        .slice(1)
+        .map((r) => {
+          const value = (r[vIdx] ?? "").trim();
+          const rec: { value: string; count?: number } = { value };
+          if (cIdx >= 0 && r[cIdx] !== undefined) {
+            const n = Number(r[cIdx].trim());
+            if (!Number.isNaN(n)) rec.count = n;
+          }
+          return rec;
+        })
+        .filter((rec) => rec.value.length > 0);
+      const values = rows.map((r) => (r.count !== undefined ? `${r.value} (${r.count})` : r.value));
+      const structured = { field, include_counts: !!include_counts, total: rows.length, values, rows };
+      if (rows.length === 0) {
         return { text: `No unique values found for ${field} in the given range.`, structured };
       }
       return { text: formatSessionUniqueValues(structured), structured };
@@ -210,10 +266,11 @@ export function registerSessionSearchTools(server: McpServer, apiBase: string, a
       scope,
     },
     outputSchema: sessionExportFileSchema,
+    annotations: { readOnlyHint: false },
     handler: async ({ session_id, type, scope }, { client, log }) => {
       const fmt = type ?? "pcap";
       const ext = fmt === "pcap" ? "pcap" : "bin";
-      const outputPath = join(tmpdir(), `session-${session_id}-${fmt}-${Date.now()}.${ext}`);
+      const outputPath = join(tmpdir(), `greynoise-session-${randomUUID()}.${ext}`);
       await log("info", `Exporting session ${session_id} as ${fmt}...`);
       const { filePath, fileSize } = await client.getBinary(
         `v3/sessions/${encodeURIComponent(session_id)}/export`,

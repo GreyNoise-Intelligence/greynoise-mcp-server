@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { randomUUID } from "crypto";
 import { tmpdir } from "os";
 import { join } from "path";
 import { unlink } from "fs/promises";
@@ -25,9 +26,9 @@ Use Lucene query syntax to filter sessions (e.g., "destination.port:443", "sourc
       scope: z.string().optional().describe("Data scope for the query (default: workspace)"),
     },
     outputSchema: pcapFileSchema,
+    annotations: { readOnlyHint: false },
     handler: async ({ start_time, end_time, query, size, sort_by, sort_desc, scope }, { client, log }) => {
-      const timestamp = new Date().toISOString().replace(/[:.]/g, "-");
-      const outputPath = join(tmpdir(), `sessions-export-${timestamp}.pcap`);
+      const outputPath = join(tmpdir(), `sessions-export-${randomUUID()}.pcap`);
 
       const params: Record<string, unknown> = {
         start_time,
@@ -46,6 +47,7 @@ Use Lucene query syntax to filter sessions (e.g., "destination.port:443", "sourc
         await unlink(filePath).catch(() => {});
         return {
           text: `No matching sessions found for the given query and time range.\n\n**Time Range**: ${start_time} to ${end_time}${query ? `\n**Query**: ${query}` : ""}`,
+          structured: { available: false },
         };
       }
 
@@ -57,7 +59,7 @@ Use Lucene query syntax to filter sessions (e.g., "destination.port:443", "sourc
       text += `**Max Sessions**: ${size}\n`;
       text += `\nOpen with Wireshark, tshark, or tcpdump for analysis.`;
 
-      return { text, structured: { filePath, fileSize } };
+      return { text, structured: { available: true, filePath, fileSize } };
     },
   });
 }

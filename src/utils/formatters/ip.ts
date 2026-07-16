@@ -1,5 +1,5 @@
 import type { IPContext, IPQuickCheck, MultiIP } from "../../greynoise/schemas.js";
-import { truncateList } from "../format-helpers.js";
+import { truncateList, escapeMarkdownTableCell as esc } from "../format-helpers.js";
 
 export function formatIPContext(data: IPContext): string {
   if (!data || data.ip === undefined) {
@@ -101,10 +101,10 @@ export function formatIPContext(data: IPContext): string {
     const hasContent = h.path?.length || h.useragent?.length || h.method?.length || h.host?.length;
     if (hasContent) {
       response += `## HTTP Activity\n\n`;
-      if (h.method?.length) response += `**Methods**: ${truncateList(h.method, 10)}\n`;
-      if (h.path?.length) response += `**Paths**: ${truncateList(h.path, 10)}\n`;
-      if (h.useragent?.length) response += `**User Agents**: ${truncateList(h.useragent, 5)}\n`;
-      if (h.host?.length) response += `**Hosts**: ${truncateList(h.host, 10)}\n`;
+      if (h.method?.length) response += `**Methods**: ${truncateList(h.method.map(esc), 10)}\n`;
+      if (h.path?.length) response += `**Paths**: ${truncateList(h.path.map(esc), 10)}\n`;
+      if (h.useragent?.length) response += `**User Agents**: ${truncateList(h.useragent.map(esc), 5)}\n`;
+      if (h.host?.length) response += `**Hosts**: ${truncateList(h.host.map(esc), 10)}\n`;
       if (h.ja4h?.length) response += `**JA4H**: ${truncateList(h.ja4h, 5)}\n`;
       response += `\n`;
     }
@@ -204,7 +204,7 @@ export function formatMultiIPV3(data: MultiIP): string {
     const cls = r.internet_scanner_intelligence?.classification || "unknown";
     const bsiFound = r.business_service_intelligence?.found ? "Yes" : "No";
     const trust = r.business_service_intelligence?.trust_level || "-";
-    response += `| ${r.ip} | ${cls} | ${bsiFound} | ${trust} |\n`;
+    response += `| ${esc(r.ip)} | ${esc(cls)} | ${bsiFound} | ${esc(trust)} |\n`;
   }
 
   if (results.length > 50) {

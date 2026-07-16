@@ -10,10 +10,15 @@ export function formatTimestamp(value: unknown): string {
 }
 
 function escapeCsvField(value: string): string {
-  return /[",\r\n]/.test(value) ? `"${value.replace(/"/g, '""')}"` : value;
+  const guarded = /^[=+\-@\t\r]/.test(value) ? `'${value}` : value;
+  return /[",\r\n]/.test(guarded) ? `"${guarded.replace(/"/g, '""')}"` : guarded;
 }
 
 export function toCsv(headers: string[], rows: string[][]): string {
   const lines = [headers, ...rows].map((row) => row.map(escapeCsvField).join(","));
   return lines.join("\r\n");
+}
+
+export function escapeMarkdownTableCell(value: unknown): string {
+  return String(value).replace(/\|/g, "\\|").replace(/[\r\n]+/g, " ");
 }

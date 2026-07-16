@@ -6,6 +6,7 @@ import {
   listBlocklistsSchema,
   blocklistIpsSchema,
   okSchema,
+  deletionResultSchema,
 } from "../greynoise/schemas/operational.js";
 
 const wid = z.string().describe("Workspace ID (UUID) that owns the blocklist");
@@ -91,7 +92,7 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     title: "Delete Blocklist",
     description: "Permanently delete a blocklist. This cannot be undone.",
     inputSchema: { workspace_id: wid, blocklist_id: bid },
-    outputSchema: okSchema,
+    outputSchema: deletionResultSchema,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     handler: async ({ workspace_id, blocklist_id }, { client }) => {
       await client.del(`${bl(workspace_id)}/${encodeURIComponent(blocklist_id)}`, okSchema);

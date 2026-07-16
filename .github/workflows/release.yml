@@ -13,6 +13,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -20,7 +22,7 @@ jobs:
           registry-url: "https://registry.npmjs.org"
 
       # Staged publishing requires npm >= 11.15.0 (and Node >= 22.14)
-      - run: npm install -g npm@latest
+      - run: npm install -g npm@11.15.0
 
       - run: npm ci
 

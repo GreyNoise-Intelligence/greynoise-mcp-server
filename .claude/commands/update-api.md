@@ -19,10 +19,11 @@ Run `scripts/refresh-spec.sh`. It fetches the authoritative
 
 ## 2. Enumerate every API call the server makes
 
-Grep `src/tools/` and `src/utils/` for `fetchGreyNoise`, `postToGreyNoise`, and
-`fetchGreyNoiseBinary`. Build a table of:
+Grep `src/tools/`, `src/resources/`, and `src/utils/` for `client.get`,
+`client.post`, `client.put`, `client.delete`, and `client.patch`. Build a table
+of:
 
-`{ tool file, HTTP method, endpoint path, query/path/body params sent, response type/fields the code reads }`
+`{ file, HTTP method, endpoint path, query/path/body params sent, zod response schema passed to the client }`
 
 Include the tag list call in `src/utils/tag-cache.ts`.
 
@@ -38,9 +39,9 @@ For each endpoint, find the matching `path` + method in the spec and classify:
 - **GONE** — endpoint absent from the spec entirely.
 
 Check specifically: path string, HTTP method, required parameters and their
-`in` location (query/path/body), and that each response field read in the tool
-(and in `src/types/greynoise-response.ts`) is present in the spec's response
-schema.
+`in` location (query/path/body), and that each response field validated by the
+zod schema (in `src/greynoise/schemas.ts` and `src/greynoise/schemas/`) is
+present in the spec's response schema.
 
 ## 4. Apply safe fixes
 
@@ -48,7 +49,7 @@ Apply ONLY changes that make the code match the contract:
 
 - Endpoint path / method corrections
 - Zod parameter schema updates (names, required/optional, types, locations)
-- Response type updates in `src/types/greynoise-response.ts`
+- Zod response schema updates in `src/greynoise/schemas.ts` and `src/greynoise/schemas/`
 - Tool description text where the contract semantics changed
 
 Do NOT:

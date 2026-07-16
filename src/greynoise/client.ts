@@ -31,7 +31,7 @@ export class GreyNoiseClient {
 
   /** Stable, non-reversible identity for the current API key — safe to use as a cache key. */
   cacheKey(): string {
-    return createHash("sha256").update(this.apiKeyGetter()).digest("hex");
+    return createHash("sha256").update(`${this.apiBase}\0${this.apiKeyGetter()}`).digest("hex");
   }
 
   private buildUrl(endpoint: string, params?: Record<string, unknown>): URL {
@@ -51,9 +51,10 @@ export class GreyNoiseClient {
   private async fetchRaw(endpoint: string, options: RequestOptions): Promise<string> {
     const { method = "GET", params, body, timeoutMs = DEFAULT_TIMEOUT_MS, accept = "application/json" } = options;
     const url = this.buildUrl(endpoint, params).toString();
+    const maxRetries = method === "GET" ? MAX_RETRIES : 0;
 
     let lastError: unknown;
-    for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort(), timeoutMs);
       try {
@@ -66,8 +67,11 @@ export class GreyNoiseClient {
 
         if (response.status === 429 || response.status >= 500) {
           lastError = new GreyNoiseApiError(response.status, endpoint, `retryable status ${response.status}`);
-          if (attempt < MAX_RETRIES) await this.backoff(attempt, response.headers.get("retry-after"));
-          continue;
+          if (attempt < maxRetries) {
+            await this.backoff(attempt, response.headers.get("retry-after"));
+            continue;
+          }
+          throw lastError;
         }
         if (!response.ok) {
           const detail = await response.text().catch(() => "");
@@ -76,7 +80,7 @@ export class GreyNoiseClient {
         return await response.text();
       } catch (error) {
         lastError = error;
-        if (attempt < MAX_RETRIES && this.isRetryable(error)) {
+        if (attempt < maxRetries && this.isRetryable(error)) {
           await this.backoff(attempt, null);
           continue;
         }
@@ -151,22 +155,29 @@ export class GreyNoiseClient {
     outputPath: string,
     params?: Record<string, unknown>,
     accept = "application/vnd.tcpdump.pcap",
+    timeoutMs = DEFAULT_TIMEOUT_MS,
   ): Promise<{ filePath: string; fileSize: number }> {
     const url = this.buildUrl(endpoint, params).toString();
-    const response = await fetch(url, { headers: this.headers(accept) });
-    if (!response.ok) {
-      const detail = await response.text().catch(() => "");
-      throw new GreyNoiseApiError(response.status, endpoint, `${response.status} ${detail}`.trim());
-    }
-    if (!response.body) throw new GreyNoiseApiError(response.status, endpoint, "empty response body");
-    const fileStream = createWriteStream(outputPath);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
     try {
-      await pipeline(response.body, fileStream);
-    } catch (writeError) {
-      await unlink(outputPath).catch(() => {});
-      throw writeError;
+      const response = await fetch(url, { headers: this.headers(accept), signal: controller.signal });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new GreyNoiseApiError(response.status, endpoint, `${response.status} ${detail}`.trim());
+      }
+      if (!response.body) throw new GreyNoiseApiError(response.status, endpoint, "empty response body");
+      const fileStream = createWriteStream(outputPath);
+      try {
+        await pipeline(response.body, fileStream);
+      } catch (writeError) {
+        await unlink(outputPath).catch(() => {});
+        throw writeError;
+      }
+      const fileStats = await stat(outputPath);
+      return { filePath: outputPath, fileSize: fileStats.size };
+    } finally {
+      clearTimeout(timer);
     }
-    const fileStats = await stat(outputPath);
-    return { filePath: outputPath, fileSize: fileStats.size };
   }
 }

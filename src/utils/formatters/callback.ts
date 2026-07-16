@@ -1,5 +1,5 @@
 import type { CallbackIPDetail, CallbackListIPs, CallbackOverview } from "../../greynoise/schemas/callback.js";
-import { truncateList, formatTimestamp } from "../format-helpers.js";
+import { truncateList, formatTimestamp, escapeMarkdownTableCell as esc } from "../format-helpers.js";
 
 function stage(is1?: boolean, is2?: boolean): string {
   if (is2) return "Stage 2 (suspected C2)";
@@ -38,7 +38,7 @@ export function formatCallbackIPDetail(data: CallbackIPDetail): string {
     out += `\n## Malware Files\n\n| SHA256 | Threat | VT | Type |\n|--|--|--|--|\n`;
     for (const f of data.active_files.slice(0, 25)) {
       const vt = f.vt_detection_count !== undefined ? `${f.vt_detection_count}/${f.vt_engine_count ?? "?"}` : "-";
-      out += `| ${f.sha256 ?? "-"} | ${f.threat_name ?? "-"} | ${vt} | ${f.type ?? "-"} |\n`;
+      out += `| ${esc(f.sha256 ?? "-")} | ${esc(f.threat_name ?? "-")} | ${vt} | ${esc(f.type ?? "-")} |\n`;
     }
     if (data.active_files.length > 25) out += `\n*Showing 25 of ${data.active_files.length} files.*\n`;
   }
@@ -53,7 +53,7 @@ export function formatCallbackList(data: CallbackListIPs): string {
 
   out += `| IP | Stage | RIOT | Scanners | Files | Org |\n|--|--|--|--|--|--|\n`;
   for (const it of items.slice(0, 50)) {
-    out += `| ${it.ip ?? "-"} | ${stage(it.is_stage_1, it.is_stage_2)} | ${it.is_riot ? "Yes" : "No"} | ${it.scanner_count ?? 0} | ${it.file_count ?? 0} | ${it.enrichment?.org ?? "-"} |\n`;
+    out += `| ${esc(it.ip ?? "-")} | ${stage(it.is_stage_1, it.is_stage_2)} | ${it.is_riot ? "Yes" : "No"} | ${it.scanner_count ?? 0} | ${it.file_count ?? 0} | ${esc(it.enrichment?.org ?? "-")} |\n`;
   }
   if (items.length > 50) out += `\n*Showing 50 of ${items.length} listed.*\n`;
   return out;
@@ -72,7 +72,7 @@ export function formatCallbackOverview(data: CallbackOverview): string {
   if (data.top_threat_names?.length) {
     out += `\n## Top Threat Names\n\n| Threat | Files | IPs |\n|--|--|--|\n`;
     for (const t of data.top_threat_names.slice(0, 20)) {
-      out += `| ${t.threat_name ?? "-"} | ${t.file_count ?? 0} | ${t.ip_count ?? 0} |\n`;
+      out += `| ${esc(t.threat_name ?? "-")} | ${t.file_count ?? 0} | ${t.ip_count ?? 0} |\n`;
     }
   }
   return out;

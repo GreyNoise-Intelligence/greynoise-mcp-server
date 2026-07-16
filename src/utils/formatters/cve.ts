@@ -1,5 +1,10 @@
 import type { CVEDetails, TrendingTagsSummary } from "../../greynoise/schemas/cve.js";
 
+function utc(value: string): string {
+  const d = new Date(value);
+  return isNaN(d.getTime()) ? value : `${d.toISOString().replace("T", " ").replace(/\.\d+Z$/, "")} UTC`;
+}
+
 export function formatCVEDetails(data: CVEDetails): string {
   let response = `# CVE Details: ${data.id}\n\n`;
 
@@ -12,11 +17,11 @@ export function formatCVEDetails(data: CVEDetails): string {
   response += `**Published to NIST NVD**: ${data.details.published_to_nist_nvd ? "Yes" : "No"}\n\n`;
 
   response += `## Timeline\n\n`;
-  response += `**Published Date**: ${new Date(data.timeline.cve_published_date).toLocaleString()}\n`;
-  response += `**Last Updated**: ${new Date(data.timeline.cve_last_updated_date).toLocaleString()}\n`;
-  response += `**First Known Publication**: ${new Date(data.timeline.first_known_published_date).toLocaleString()}\n`;
+  response += `**Published Date**: ${utc(data.timeline.cve_published_date)}\n`;
+  response += `**Last Updated**: ${utc(data.timeline.cve_last_updated_date)}\n`;
+  response += `**First Known Publication**: ${utc(data.timeline.first_known_published_date)}\n`;
   if (data.timeline.cisa_kev_date_added) {
-    response += `**Added to CISA KEV**: ${new Date(data.timeline.cisa_kev_date_added).toLocaleString()}\n`;
+    response += `**Added to CISA KEV**: ${utc(data.timeline.cisa_kev_date_added)}\n`;
   }
   response += `\n`;
 

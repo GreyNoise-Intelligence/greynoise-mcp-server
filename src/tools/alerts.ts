@@ -7,6 +7,7 @@ import {
   alertsWrapperSchema,
   testWebhookResponseSchema,
   okSchema,
+  deletionResultSchema,
 } from "../greynoise/schemas/operational.js";
 
 const wid = z.string().describe("Workspace ID (UUID) that owns the alert");
@@ -127,7 +128,7 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     title: "Delete Alert",
     description: "Permanently delete an alert. This cannot be undone.",
     inputSchema: { workspace_id: wid, alert_id: aid },
-    outputSchema: okSchema,
+    outputSchema: deletionResultSchema,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
       await client.del(`${v2(workspace_id)}/${encodeURIComponent(alert_id)}`, okSchema);

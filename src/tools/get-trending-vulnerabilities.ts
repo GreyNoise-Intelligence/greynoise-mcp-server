@@ -29,8 +29,10 @@ export function registerGetTrendingVulnerabilitiesTool(server: McpServer, apiBas
     inputSchema: {},
     outputSchema: trendingTagsSummarySchema,
     handler: async (_args, { client }) => {
-      const trending = await client.get("v3/summary/tags", trendingTagsResponseSchema, { sort: "trending" });
-      const anomalies = await client.get("v3/summary/tags", trendingTagsResponseSchema, { sort: "anomalies" });
+      const [trending, anomalies] = await Promise.all([
+        client.get("v3/summary/tags", trendingTagsResponseSchema, { sort: "trending" }),
+        client.get("v3/summary/tags", trendingTagsResponseSchema, { sort: "anomalies" }),
+      ]);
 
       const tags = [...tagsWithSource(trending, "trending"), ...tagsWithSource(anomalies, "anomalies")];
       const result = { count: tags.length, tags };

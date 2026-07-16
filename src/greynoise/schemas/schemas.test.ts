@@ -43,6 +43,8 @@ describe("response schema validation", () => {
   });
 
   it("rejects a wrong-typed field", () => {
-    expect(() => gnqlStatsSchema.parse({ count: "not-a-number" })).toThrow();
+    const validStats = { count: 5, query: "cve:CVE-2023-6549", stats: {} };
+    expect(() => gnqlStatsSchema.parse(validStats)).not.toThrow();
+    expect(() => gnqlStatsSchema.parse({ ...validStats, count: "not-a-number" })).toThrow();
   });
 });

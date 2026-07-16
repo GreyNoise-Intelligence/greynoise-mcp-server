@@ -6,9 +6,10 @@ import type {
   SessionTimeseriesResponse,
   SessionUniqueValues,
 } from "../../greynoise/schemas/sessions-search.js";
-import { truncateList, formatTimestamp } from "../format-helpers.js";
+import { truncateList, formatTimestamp, escapeMarkdownTableCell } from "../format-helpers.js";
 
 const str = (v: unknown): string => (v === undefined || v === null ? "-" : String(v));
+const cell = (v: unknown): string => escapeMarkdownTableCell(str(v));
 
 export function formatSessionsSearch(data: SessionsResponse): string {
   const sessions = data.sessions ?? [];
@@ -22,9 +23,9 @@ export function formatSessionsSearch(data: SessionsResponse): string {
   text += `| ID | Source | Destination | Class | Last Packet |\n|--|--|--|--|--|\n`;
   for (const s of sessions.slice(0, 50)) {
     const r = s as Record<string, unknown>;
-    const src = `${str(r["source.ip"])}:${str(r["source.port"])}`;
-    const dst = `${str(r["destination.ip"])}:${str(r["destination.port"])}`;
-    text += `| ${str(r._id)} | ${src} | ${dst} | ${str(r.classification)} | ${formatTimestamp(r.lastPacket)} |\n`;
+    const src = `${cell(r["source.ip"])}:${cell(r["source.port"])}`;
+    const dst = `${cell(r["destination.ip"])}:${cell(r["destination.port"])}`;
+    text += `| ${cell(r._id)} | ${src} | ${dst} | ${cell(r.classification)} | ${cell(formatTimestamp(r.lastPacket))} |\n`;
   }
   if (sessions.length > 50) text += `\n*Showing 50 of ${sessions.length} returned.*\n`;
   return text;
@@ -34,7 +35,7 @@ export function formatSessionFields(data: SessionFieldsResponse): string {
   const fields = data.fields ?? [];
   let text = `# Session Fields (${fields.length})\n\n| Field | Type | Group | Sortable |\n|--|--|--|--|\n`;
   for (const f of fields) {
-    text += `| ${str(f.value)} | ${str(f.type)} | ${str(f.group)} | ${f.sortable ? "yes" : "no"} |\n`;
+    text += `| ${cell(f.value)} | ${cell(f.type)} | ${cell(f.group)} | ${f.sortable ? "yes" : "no"} |\n`;
   }
   return text;
 }
@@ -47,6 +48,7 @@ export function formatSessionCounts(data: SessionCountsResponse): string {
       text += `${"  ".repeat(depth)}- ${str(n.label)}: ${str(n.count)}\n`;
       if (n.children?.length) render(n.children, depth + 1);
     }
+    if (nodes.length > 25) text += `${"  ".repeat(depth)}- (+${nodes.length - 25} more)\n`;
   };
   render(items, 0);
   return text;
@@ -59,7 +61,7 @@ export function formatSessionConnections(data: SessionConnectionsResponse): stri
   if (links.length === 0) return text + "No connections matched the query.\n";
   text += `| Source | Target | Connections |\n|--|--|--|\n`;
   for (const l of links.slice(0, 50)) {
-    text += `| ${str(l.source)} | ${str(l.target)} | ${str(l.value)} |\n`;
+    text += `| ${cell(l.source)} | ${cell(l.target)} | ${str(l.value)} |\n`;
   }
   if (links.length > 50) text += `\n*Showing 50 of ${links.length} links.*\n`;
   return text;
@@ -71,14 +73,16 @@ export function formatSessionTimeseries(data: SessionTimeseriesResponse): string
     for (const item of data.items.slice(0, 20)) {
       text += `- **${str(item.label)}**: ${str(item.count)} sessions\n`;
     }
+    if (data.items.length > 20) text += `\n*Showing 20 of ${data.items.length} items.*\n`;
     return text;
   }
   const points = data.timeseries ?? [];
   if (points.length === 0) return text + "No data points in range.\n";
   text += `| Timestamp | Count |\n|--|--|\n`;
   for (const p of points.slice(0, 100)) {
-    text += `| ${formatTimestamp(p.timestamp)} | ${str(p.count)} |\n`;
+    text += `| ${cell(formatTimestamp(p.timestamp))} | ${str(p.count)} |\n`;
   }
+  if (points.length > 100) text += `\n*Showing 100 of ${points.length} points.*\n`;
   return text;
 }
 

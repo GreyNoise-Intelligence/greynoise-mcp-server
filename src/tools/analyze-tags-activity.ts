@@ -16,7 +16,6 @@ export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: stri
       query: z.string().optional().describe("Substring to match in name, description, slug, or label"),
       category: z.string().optional().describe("Exact category match, e.g. 'activity'"),
       intention: z.string().optional().describe("Exact intention match, e.g. 'malicious', 'benign'"),
-      cve: z.string().optional().describe("CVE identifier (accepted for compatibility; not used as a filter)"),
       days: z.enum(["1", "10", "30"]).default("30").describe("Days of activity: 1, 10, or 30"),
     },
     outputSchema: analyzeTagsSummarySchema,
@@ -49,27 +48,40 @@ export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: stri
       const daysNum = parseInt(days, 10);
       const granularity = daysNum === 1 ? "1h" : "24h";
 
-      const activityResults = await Promise.all(
-        filteredTags.map(async (tag) => {
-          try {
-            const activity = await client.get(`v3/tags/${tag.id}/activity`, tagActivitySchema, {
-              days: daysNum,
-              granularity,
-            });
-            return {
-              tag: { id: tag.id, name: tag.name, slug: tag.slug, category: tag.category, intention: tag.intention },
-              activity,
-            };
-          } catch (error) {
-            logger.warn("Failed to fetch tag activity", {
-              tag_id: tag.id,
-              error: error instanceof Error ? error.message : String(error),
-            });
-            return null;
-          }
-        }),
-      );
-      const validResults = activityResults.filter((r): r is NonNullable<typeof r> => r !== null);
+      const batchSize = 10;
+      const validResults: NonNullable<Awaited<ReturnType<typeof fetchOne>>>[] = [];
+      let failedTags = 0;
+
+      const fetchOne = async (tag: (typeof filteredTags)[number]) => {
+        try {
+          const activity = await client.get(`v3/tags/${tag.id}/activity`, tagActivitySchema, {
+            days: daysNum,
+            granularity,
+          });
+          return {
+            tag: { id: tag.id, name: tag.name, slug: tag.slug, category: tag.category, intention: tag.intention },
+            activity,
+          };
+        } catch (error) {
+          logger.warn("Failed to fetch tag activity", {
+            tag_id: tag.id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          return null;
+        }
+      };
+
+      for (let i = 0; i < filteredTags.length; i += batchSize) {
+        const batch = await Promise.all(filteredTags.slice(i, i + batchSize).map(fetchOne));
+        for (const r of batch) {
+          if (r) validResults.push(r);
+          else failedTags++;
+        }
+      }
+
+      if (validResults.length === 0 && failedTags > 0) {
+        throw new Error(`Failed to fetch activity for all ${failedTags} matching tags.`);
+      }
 
       const totalActiveIpsByClassification: Record<string, number> = {
         malicious: 0,
@@ -106,7 +118,11 @@ export function registerAnalyzeTagsActivityTool(server: McpServer, apiBase: stri
         tags_detail: tagsDetail,
       };
 
-      return formatAnalyzeTags(summary);
+      const result = formatAnalyzeTags(summary);
+      if (failedTags > 0) {
+        result.text = `${result.text}\n\nNote: activity fetch failed for ${failedTags} tag(s); results are partial.`;
+      }
+      return result;
     },
   });
 }

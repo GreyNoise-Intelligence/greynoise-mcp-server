@@ -86,11 +86,17 @@ export const sessionTimeseriesResponseSchema = passthrough({
   request_metadata: passthrough({}).optional(),
 });
 
+const sessionUniqueValueSchema = passthrough({
+  value: z.string(),
+  count: z.coerce.number().optional(),
+});
+
 export const sessionUniqueValuesSchema = passthrough({
   field: z.string(),
   include_counts: z.boolean().optional(),
   total: z.number().optional(),
   values: z.array(z.string()),
+  rows: z.array(sessionUniqueValueSchema).optional(),
 });
 
 export const sessionExportFileSchema = passthrough({

@@ -18,6 +18,7 @@ import {
 
 const bsiDate = z
   .string()
+  .regex(/^(now|\d{4}-\d{2}-\d{2})$/, "date must be 'now' or an ISO date 'YYYY-MM-DD'")
   .optional()
   .describe("Snapshot date: 'now' (default, live BSI data) or 'YYYY-MM-DD' for historical data (404 if unavailable)");
 

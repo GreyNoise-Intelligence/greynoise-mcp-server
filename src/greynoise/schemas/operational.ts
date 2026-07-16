@@ -57,3 +57,4 @@ export const testWebhookResponseSchema = passthrough({
   response_body: z.string().optional(),
 });
 export const okSchema = passthrough({});
+export const deletionResultSchema = passthrough({ id: z.string(), deleted: z.boolean() });
