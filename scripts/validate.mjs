@@ -11,9 +11,9 @@
 // Env:
 //   GREYNOISE_API_KEY   required (passed through to the server)
 //   MCP_SERVER_CMD      server entry to spawn (default: "node build/index.js")
-//   GN_RUN_WRITES=1     run the create->delete round-trip for the operational (write) tools.
-//                       Workspace is resolved from the key (/v1/account) — no workspace id needed.
-//                       Use a DISPOSABLE workspace key: it creates + deletes "mcp-validate-DELETE-ME" resources.
+//   MCP_VALIDATE_READONLY=1  skip the operational write round-trip (create->delete). Default is to RUN it,
+//                       resolving the workspace from the key (/v1/account) — no workspace id needed.
+//                       Use a DISPOSABLE workspace key: the round-trip creates + deletes "mcp-validate-DELETE-ME".
 //   GREYNOISE_API_BASE  optional; forwarded to the server
 //
 // Any created resource is tracked and force-deleted in a finally block, so a mid-run crash
@@ -28,9 +28,9 @@ if (!process.env.GREYNOISE_API_KEY) {
 }
 
 const [cmd, ...cmdArgs] = (process.env.MCP_SERVER_CMD ?? "node build/index.js").split(" ");
-// Opt-in to the mutating create->delete round-trip. Workspace is resolved from the key (/v1/account),
-// so no workspace id is needed — this flag is purely a safety switch (off in reads-only CI).
-const runWrites = process.env.GN_RUN_WRITES === "1";
+// The create->delete round-trip runs by default (workspace resolved from the key via /v1/account).
+// CI opts out with MCP_VALIDATE_READONLY=1 so it never mutates a workspace.
+const runWrites = process.env.MCP_VALIDATE_READONLY !== "1";
 
 const results = [];
 const record = (kind, name, detail = "") => results.push({ kind, name, detail });
@@ -87,7 +87,7 @@ async function main() {
     const { prompts } = await client.listPrompts();
     const { resources } = await client.listResources().catch(() => ({ resources: [] }));
     console.log(`Discovered ${tools.length} tools, ${prompts.length} prompts, ${resources.length} static resources.`);
-    console.log(runWrites ? "Write round-trip: ON (GN_RUN_WRITES=1)\n" : "Write round-trip: OFF (set GN_RUN_WRITES=1 to enable)\n");
+    console.log(runWrites ? "Write round-trip: ON\n" : "Write round-trip: OFF (MCP_VALIDATE_READONLY=1)\n");
 
     // --- discover live fixtures from the server itself ---
     const now = new Date(), weekAgo = new Date(now.getTime() - 7 * 864e5), q90 = new Date(now.getTime() - 90 * 864e5);
@@ -136,7 +136,7 @@ async function main() {
     for (const t of tools) {
       if (writeTools.has(t.name)) continue;
       if (roundTripReads.has(t.name)) {
-        if (!runWrites) record("SKIPPED", t.name, "exercised only in the write round-trip (GN_RUN_WRITES=1)");
+        if (!runWrites) record("SKIPPED", t.name, "reads-only mode (MCP_VALIDATE_READONLY=1)");
         continue;
       }
       const args = fixtures[t.name];
@@ -168,7 +168,7 @@ async function main() {
 
     console.log("── Write tools (round-trip) ──");
     if (!runWrites) {
-      for (const n of writeTools) record("SKIPPED", n, "set GN_RUN_WRITES=1 to run the create->delete round-trip");
+      for (const n of writeTools) record("SKIPPED", n, "reads-only mode (MCP_VALIDATE_READONLY=1)");
     } else {
       await writeRoundTrip(client);
     }

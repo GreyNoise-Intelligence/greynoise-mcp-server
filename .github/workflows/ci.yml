@@ -45,9 +45,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - name: Validate against live GreyNoise API
+      - name: Validate against live GreyNoise API (reads-only)
         env:
           GREYNOISE_API_KEY: ${{ secrets.GREYNOISE_API_KEY }}
+          MCP_VALIDATE_READONLY: "1"
         run: |
           if [ -z "$GREYNOISE_API_KEY" ]; then
             echo "::warning::GREYNOISE_API_KEY secret not set — skipping live validation"
