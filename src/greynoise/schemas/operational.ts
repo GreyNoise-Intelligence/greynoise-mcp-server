@@ -42,9 +42,9 @@ export const alertSchema = passthrough({
   enabled: z.boolean().optional(),
   status: z.string().optional(),
   gnql_query: z.string().optional(),
-  parameters: z.array(alertParameterSchema).optional(),
-  schedule: alertScheduleSchema.optional(),
-  recipients: z.array(alertRecipientSchema).optional(),
+  parameters: z.array(alertParameterSchema).nullish(),
+  schedule: alertScheduleSchema.nullish(),
+  recipients: z.array(alertRecipientSchema).nullish(),
   created_at: z.string().optional(),
   updated_at: z.string().optional(),
 });

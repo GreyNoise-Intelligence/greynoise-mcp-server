@@ -70,6 +70,8 @@ const gnqlTimeseriesRecordSchema = passthrough({
 });
 
 export const gnqlTimeseriesSchema = z.record(z.string(), z.array(gnqlTimeseriesRecordSchema));
+// Object wrapper for the tool outputSchema — the SDK can't derive a JSON Schema from a top-level z.record.
+export const gnqlTimeseriesResultSchema = passthrough({ buckets: gnqlTimeseriesSchema });
 
 export const gnqlTimeseriesStatsSchema = passthrough({
   count: z.number(),

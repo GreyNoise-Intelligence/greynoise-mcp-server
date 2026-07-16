@@ -78,11 +78,23 @@ export function registerCallbackTools(server: McpServer, apiBase: string, apiKey
     name: "callback-overview",
     title: "Callback Overview Statistics",
     description:
-      "Aggregate statistics for callback/C2 IPs matching the filters: counts by attack stage, file analysis status, RIOT trust levels, scanner associations, and top threat names. Dates are YYYY-MM-DD.",
-    inputSchema: { ...filterFields },
+      "Aggregate statistics for callback/C2 IPs matching the filters: counts by attack stage, file analysis status, RIOT trust levels, scanner associations, and top threat names. Bounded to a recent window (days: 1-7, default 1) — wider ranges overload the aggregation.",
+    inputSchema: {
+      days: z.number().int().min(1).max(7).default(1).describe("Lookback window in days (1-7, default 1)"),
+      is_stage_1: filterFields.is_stage_1,
+      is_stage_2: filterFields.is_stage_2,
+      has_files: filterFields.has_files,
+      file_type: filterFields.file_type,
+      file_name: filterFields.file_name,
+      file_hash: filterFields.file_hash,
+      scanner_ips: filterFields.scanner_ips,
+      ips: filterFields.ips,
+    },
     outputSchema: callbackOverviewSchema,
-    handler: async (args, { client }) => {
-      const data = await client.post("v1/callback/overview", callbackOverviewSchema, args);
+    handler: async ({ days, ...filters }, { client }) => {
+      const firstSeenAfter = new Date(Date.now() - days * 864e5).toISOString().slice(0, 10);
+      const body = { ...filters, first_seen_after: firstSeenAfter };
+      const data = await client.post("v1/callback/overview", callbackOverviewSchema, body, 60_000);
       return { text: formatCallbackOverview(data), structured: data };
     },
   });

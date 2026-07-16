@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { defineTool } from "./define-tool.js";
-import { gnqlTimeseriesSchema } from "../greynoise/schemas/gnql.js";
+import { gnqlTimeseriesSchema, gnqlTimeseriesResultSchema } from "../greynoise/schemas/gnql.js";
 import { formatGnqlTimeseries } from "../utils/formatters/gnql.js";
 
 export function registerGnqlTimeseriesTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
@@ -19,13 +19,13 @@ Time bounds use ISO 8601 (e.g. 2025-01-15T00:00:00Z). size is results per hourly
       end_time: z.string().optional().describe("End of time range (ISO 8601 format)"),
       size: z.number().min(1).max(10000).default(25).optional().describe("Results per hourly bucket (default: 25)"),
     },
-    outputSchema: gnqlTimeseriesSchema,
+    outputSchema: gnqlTimeseriesResultSchema,
     handler: async ({ query, start_time, end_time, size }, { client }) => {
       const params: Record<string, unknown> = { query, size: size ?? 25 };
       if (start_time) params.start = start_time;
       if (end_time) params.end = end_time;
       const data = await client.get("v3/gnql/timeseries", gnqlTimeseriesSchema, params);
-      return { text: formatGnqlTimeseries(data), structured: data };
+      return { text: formatGnqlTimeseries(data), structured: { buckets: data } };
     },
   });
 }

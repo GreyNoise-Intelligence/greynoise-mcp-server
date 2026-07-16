@@ -1,5 +1,6 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import type { GreyNoiseClient } from "../greynoise/client.js";
 import { defineTool } from "./define-tool.js";
 import {
   alertSchema,
@@ -10,10 +11,25 @@ import {
   deletionResultSchema,
 } from "../greynoise/schemas/operational.js";
 
-const wid = z.string().describe("Workspace ID (UUID) that owns the alert");
+const wid = z.string().optional().describe("Workspace ID (UUID). Defaults to the workspace the API key is bound to.");
 const aid = z.string().describe("Alert ID (UUID)");
 const v2 = (id: string) => `v2/workspaces/${encodeURIComponent(id)}/alerts`;
-const v1 = (id: string) => `v1/workspaces/${encodeURIComponent(id)}/alerts`;
+
+// v2 alerts have no dedicated enable/disable endpoint — toggle via a full update
+// (a partial update would clobber the alert's other fields).
+async function setAlertEnabled(client: GreyNoiseClient, workspace_id: string, alert_id: string, enabled: boolean) {
+  const path = `${v2(workspace_id)}/${encodeURIComponent(alert_id)}`;
+  const a = await client.get(path, alertSchema);
+  const body = {
+    name: a.name ?? "",
+    enabled,
+    query_workspace_id: a.query_workspace_id,
+    parameters: [{ type: "query", value: a.gnql_query ?? "" }],
+    schedule: a.schedule ?? { type: "daily" },
+    recipients: (a.recipients ?? []).map((r) => ({ type: r.type, value: r.value })),
+  };
+  return client.put(path, alertSchema, body);
+}
 
 const recipientsSchema = z
   .array(
@@ -64,8 +80,9 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     handler: async ({ workspace_id, name, query, schedule, recipients, enabled, query_workspace_id }, { client }) => {
+      const ws = workspace_id ?? (await client.workspaceId());
       const data = await client.post(
-        v2(workspace_id),
+        v2(ws),
         alertSchema,
         buildBody(query, name, schedule, recipients, enabled, query_workspace_id),
       );
@@ -80,7 +97,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     inputSchema: { workspace_id: wid },
     outputSchema: alertsWrapperSchema,
     handler: async ({ workspace_id }, { client }) => {
-      const alerts = await client.get(v2(workspace_id), alertListSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const alerts = await client.get(v2(ws), alertListSchema);
       return { text: `${alerts.length} alert(s) configured.`, structured: { alerts } };
     },
   });
@@ -92,7 +110,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     inputSchema: { workspace_id: wid, alert_id: aid },
     outputSchema: alertSchema,
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await client.get(`${v2(workspace_id)}/${encodeURIComponent(alert_id)}`, alertSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.get(`${v2(ws)}/${encodeURIComponent(alert_id)}`, alertSchema);
       return { text: `Alert "${data.name ?? data.id}" — enabled: ${data.enabled ?? "?"}.`, structured: data };
     },
   });
@@ -114,8 +133,9 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id, name, query, schedule, recipients, enabled, query_workspace_id }, { client }) => {
+      const ws = workspace_id ?? (await client.workspaceId());
       const data = await client.put(
-        `${v2(workspace_id)}/${encodeURIComponent(alert_id)}`,
+        `${v2(ws)}/${encodeURIComponent(alert_id)}`,
         alertSchema,
         buildBody(query, name, schedule, recipients, enabled, query_workspace_id),
       );
@@ -131,7 +151,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: deletionResultSchema,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      await client.del(`${v2(workspace_id)}/${encodeURIComponent(alert_id)}`, okSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      await client.del(`${v2(ws)}/${encodeURIComponent(alert_id)}`, okSchema);
       return { text: `Deleted alert ${alert_id}.`, structured: { id: alert_id, deleted: true } };
     },
   });
@@ -141,10 +162,11 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     title: "Enable Alert",
     description: "Enable (resume) a previously disabled alert.",
     inputSchema: { workspace_id: wid, alert_id: aid },
-    outputSchema: okSchema,
+    outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await client.post(`${v1(workspace_id)}/${encodeURIComponent(alert_id)}/enable`, okSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await setAlertEnabled(client, ws, alert_id, true);
       return { text: `Enabled alert ${alert_id}.`, structured: data };
     },
   });
@@ -154,10 +176,11 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     title: "Disable Alert",
     description: "Disable (pause) an alert without deleting it.",
     inputSchema: { workspace_id: wid, alert_id: aid },
-    outputSchema: okSchema,
+    outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await client.post(`${v1(workspace_id)}/${encodeURIComponent(alert_id)}/disable`, okSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await setAlertEnabled(client, ws, alert_id, false);
       return { text: `Disabled alert ${alert_id}.`, structured: data };
     },
   });
@@ -175,7 +198,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: testWebhookResponseSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, url, headers, type }, { client }) => {
-      const data = await client.post(`${v2(workspace_id)}/test-webhook`, testWebhookResponseSchema, {
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.post(`${v2(ws)}/test-webhook`, testWebhookResponseSchema, {
         url,
         headers,
         type,

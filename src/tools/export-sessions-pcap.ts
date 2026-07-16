@@ -6,6 +6,7 @@ import { join } from "path";
 import { unlink } from "fs/promises";
 import { defineTool } from "./define-tool.js";
 import { pcapFileSchema } from "../greynoise/schemas/sessions.js";
+import { GreyNoiseApiError } from "../greynoise/errors.js";
 
 const PCAP_HEADER_SIZE = 24;
 
@@ -41,7 +42,15 @@ Use Lucene query syntax to filter sessions (e.g., "destination.port:443", "sourc
       if (scope) params.scope = scope;
 
       await log("info", `Exporting session PCAP for ${start_time}..${end_time}...`);
-      const { filePath, fileSize } = await client.getBinary(`v3/sessions/export`, outputPath, params);
+      let filePath: string, fileSize: number;
+      try {
+        ({ filePath, fileSize } = await client.getBinary(`v3/sessions/export`, outputPath, params));
+      } catch (e) {
+        if (e instanceof GreyNoiseApiError && e.status === 404) {
+          return { text: `No matching sessions found for the given query and time range.`, structured: { available: false } };
+        }
+        throw e;
+      }
 
       if (fileSize <= PCAP_HEADER_SIZE) {
         await unlink(filePath).catch(() => {});
