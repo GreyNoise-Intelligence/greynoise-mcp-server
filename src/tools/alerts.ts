@@ -11,7 +11,7 @@ import {
   deletionResultSchema,
 } from "../greynoise/schemas/operational.js";
 
-const wid = z.string().describe("Workspace ID (UUID) that owns the alert");
+const wid = z.string().optional().describe("Workspace ID (UUID). Defaults to the workspace the API key is bound to.");
 const aid = z.string().describe("Alert ID (UUID)");
 const v2 = (id: string) => `v2/workspaces/${encodeURIComponent(id)}/alerts`;
 
@@ -80,8 +80,9 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     handler: async ({ workspace_id, name, query, schedule, recipients, enabled, query_workspace_id }, { client }) => {
+      const ws = workspace_id ?? (await client.workspaceId());
       const data = await client.post(
-        v2(workspace_id),
+        v2(ws),
         alertSchema,
         buildBody(query, name, schedule, recipients, enabled, query_workspace_id),
       );
@@ -96,7 +97,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     inputSchema: { workspace_id: wid },
     outputSchema: alertsWrapperSchema,
     handler: async ({ workspace_id }, { client }) => {
-      const alerts = await client.get(v2(workspace_id), alertListSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const alerts = await client.get(v2(ws), alertListSchema);
       return { text: `${alerts.length} alert(s) configured.`, structured: { alerts } };
     },
   });
@@ -108,7 +110,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     inputSchema: { workspace_id: wid, alert_id: aid },
     outputSchema: alertSchema,
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await client.get(`${v2(workspace_id)}/${encodeURIComponent(alert_id)}`, alertSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.get(`${v2(ws)}/${encodeURIComponent(alert_id)}`, alertSchema);
       return { text: `Alert "${data.name ?? data.id}" — enabled: ${data.enabled ?? "?"}.`, structured: data };
     },
   });
@@ -130,8 +133,9 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id, name, query, schedule, recipients, enabled, query_workspace_id }, { client }) => {
+      const ws = workspace_id ?? (await client.workspaceId());
       const data = await client.put(
-        `${v2(workspace_id)}/${encodeURIComponent(alert_id)}`,
+        `${v2(ws)}/${encodeURIComponent(alert_id)}`,
         alertSchema,
         buildBody(query, name, schedule, recipients, enabled, query_workspace_id),
       );
@@ -147,7 +151,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: deletionResultSchema,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      await client.del(`${v2(workspace_id)}/${encodeURIComponent(alert_id)}`, okSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      await client.del(`${v2(ws)}/${encodeURIComponent(alert_id)}`, okSchema);
       return { text: `Deleted alert ${alert_id}.`, structured: { id: alert_id, deleted: true } };
     },
   });
@@ -160,7 +165,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await setAlertEnabled(client, workspace_id, alert_id, true);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await setAlertEnabled(client, ws, alert_id, true);
       return { text: `Enabled alert ${alert_id}.`, structured: data };
     },
   });
@@ -173,7 +179,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: alertSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, alert_id }, { client }) => {
-      const data = await setAlertEnabled(client, workspace_id, alert_id, false);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await setAlertEnabled(client, ws, alert_id, false);
       return { text: `Disabled alert ${alert_id}.`, structured: data };
     },
   });
@@ -191,7 +198,8 @@ export function registerAlertTools(server: McpServer, apiBase: string, apiKeyGet
     outputSchema: testWebhookResponseSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, url, headers, type }, { client }) => {
-      const data = await client.post(`${v2(workspace_id)}/test-webhook`, testWebhookResponseSchema, {
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.post(`${v2(ws)}/test-webhook`, testWebhookResponseSchema, {
         url,
         headers,
         type,

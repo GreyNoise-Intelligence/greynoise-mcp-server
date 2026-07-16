@@ -11,9 +11,9 @@
 // Env:
 //   GREYNOISE_API_KEY   required (passed through to the server)
 //   MCP_SERVER_CMD      server entry to spawn (default: "node build/index.js")
-//   GN_WORKSPACE        workspace the key is tied to; when set, runs the write round-trip there.
-//                       (GN_TEST_WORKSPACE also accepted.) MUST be a disposable workspace —
-//                       the round-trip creates + deletes "mcp-validate-DELETE-ME" resources.
+//   GN_RUN_WRITES=1     run the create->delete round-trip for the operational (write) tools.
+//                       Workspace is resolved from the key (/v1/account) — no workspace id needed.
+//                       Use a DISPOSABLE workspace key: it creates + deletes "mcp-validate-DELETE-ME" resources.
 //   GREYNOISE_API_BASE  optional; forwarded to the server
 //
 // Any created resource is tracked and force-deleted in a finally block, so a mid-run crash
@@ -28,14 +28,16 @@ if (!process.env.GREYNOISE_API_KEY) {
 }
 
 const [cmd, ...cmdArgs] = (process.env.MCP_SERVER_CMD ?? "node build/index.js").split(" ");
-const writeWorkspace = process.env.GN_WORKSPACE || process.env.GN_TEST_WORKSPACE;
+// Opt-in to the mutating create->delete round-trip. Workspace is resolved from the key (/v1/account),
+// so no workspace id is needed — this flag is purely a safety switch (off in reads-only CI).
+const runWrites = process.env.GN_RUN_WRITES === "1";
 
 const results = [];
 const record = (kind, name, detail = "") => results.push({ kind, name, detail });
 const isGated = (t) => /entitled \(403\)|Authentication failed \(401\)|\b40[13]\b/.test(t);
 
 // resources created during the write round-trip; force-deleted in cleanup()
-const created = []; // { type: "blocklist"|"alert", workspace_id, id }
+const created = []; // { type: "blocklist"|"alert", id }
 const untrack = (id) => {
   const i = created.findIndex((c) => c.id === id);
   if (i >= 0) created.splice(i, 1);
@@ -65,7 +67,7 @@ async function cleanup(client) {
     const tool = c.type === "blocklist" ? "delete-blocklist" : "delete-alert";
     const idArg = c.type === "blocklist" ? { blocklist_id: c.id } : { alert_id: c.id };
     try {
-      const r = await client.callTool({ name: tool, arguments: { workspace_id: c.workspace_id, ...idArg } });
+      const r = await client.callTool({ name: tool, arguments: idArg });
       console.log(`  ${r.isError ? "⚠️  FAILED to delete" : "✅ deleted"} ${c.type} ${c.id}`);
       if (!r.isError) untrack(c.id);
     } catch (e) {
@@ -85,7 +87,7 @@ async function main() {
     const { prompts } = await client.listPrompts();
     const { resources } = await client.listResources().catch(() => ({ resources: [] }));
     console.log(`Discovered ${tools.length} tools, ${prompts.length} prompts, ${resources.length} static resources.`);
-    console.log(writeWorkspace ? `Write round-trip: ON (workspace ${writeWorkspace})\n` : "Write round-trip: OFF (no GN_WORKSPACE)\n");
+    console.log(runWrites ? "Write round-trip: ON (GN_RUN_WRITES=1)\n" : "Write round-trip: OFF (set GN_RUN_WRITES=1 to enable)\n");
 
     // --- discover live fixtures from the server itself ---
     const now = new Date(), weekAgo = new Date(now.getTime() - 7 * 864e5), q90 = new Date(now.getTime() - 90 * 864e5);
@@ -101,7 +103,6 @@ async function main() {
     } catch {}
 
     const ip = "8.8.8.8", range = { start_time: iso(weekAgo), end_time: iso(now) };
-    const ws = writeWorkspace ? { workspace_id: writeWorkspace } : null;
     const fixtures = {
       "lookup-ip-context": { ip }, "quick-check-ip": { ip }, "multi-ip-check": { ips: [ip, "1.1.1.1"] },
       "gnql-query": { query: "classification:malicious", size: 1 },
@@ -125,7 +126,7 @@ async function main() {
       "bsi-lookup": { ip }, "bsi-bulk-lookup": { ips: [ip] },
       "bsi-trust-stats": {}, "bsi-company-stats": {}, "bsi-category-stats": {},
       "callback-ip-lookup": { ip }, "list-callback-ips": {}, "export-callback-ips": {}, "callback-overview": { days: 1 },
-      "list-blocklists": ws, "list-alerts": ws,
+      "list-blocklists": {}, "list-alerts": {},
     };
     // write tools + id-scoped reads are exercised in the round-trip, not the read loop
     const writeTools = new Set(["create-blocklist", "update-blocklist", "delete-blocklist", "create-alert", "update-alert", "delete-alert", "enable-alert", "disable-alert", "test-alert-webhook"]);
@@ -135,12 +136,12 @@ async function main() {
     for (const t of tools) {
       if (writeTools.has(t.name)) continue;
       if (roundTripReads.has(t.name)) {
-        if (!writeWorkspace) record("SKIPPED", t.name, "needs GN_WORKSPACE (round-trip)");
+        if (!runWrites) record("SKIPPED", t.name, "exercised only in the write round-trip (GN_RUN_WRITES=1)");
         continue;
       }
       const args = fixtures[t.name];
       if (args === undefined) { record("SKIPPED", t.name, "no fixture"); continue; }
-      if (args === null) { record("SKIPPED", t.name, writeWorkspace ? "prerequisite fixture unavailable" : "needs GN_WORKSPACE"); continue; }
+      if (args === null) { record("SKIPPED", t.name, "prerequisite fixture unavailable (no live data)"); continue; }
       await callTool(client, t.name, args);
     }
 
@@ -166,10 +167,10 @@ async function main() {
     }
 
     console.log("── Write tools (round-trip) ──");
-    if (!writeWorkspace) {
-      for (const n of writeTools) record("SKIPPED", n, "set GN_WORKSPACE to a disposable workspace to round-trip writes");
+    if (!runWrites) {
+      for (const n of writeTools) record("SKIPPED", n, "set GN_RUN_WRITES=1 to run the create->delete round-trip");
     } else {
-      await writeRoundTrip(client, writeWorkspace);
+      await writeRoundTrip(client);
     }
   } finally {
     await cleanup(client).catch((e) => console.error("cleanup error:", e));
@@ -178,37 +179,38 @@ async function main() {
   report();
 }
 
-async function createTracked(client, name, args, type, workspace_id) {
+// workspace_id is omitted throughout — every operational tool defaults to the key's workspace (/v1/account)
+async function createTracked(client, name, args, type) {
   const r = await callTool(client, name, args);
   const id = r && !r.isError ? r.structuredContent?.id : undefined;
-  if (id) created.push({ type, workspace_id, id });
+  if (id) created.push({ type, id });
   return id;
 }
 
-async function writeRoundTrip(client, workspace_id) {
+async function writeRoundTrip(client) {
   // Blocklist lifecycle
   const blId = await createTracked(client, "create-blocklist",
-    { workspace_id, query: "classification:malicious", name: "mcp-validate-DELETE-ME", ip_limit: 10 }, "blocklist", workspace_id);
+    { query: "classification:malicious", name: "mcp-validate-DELETE-ME", ip_limit: 10 }, "blocklist");
   if (blId) {
-    await callTool(client, "get-blocklist", { workspace_id, blocklist_id: blId });
-    await callTool(client, "get-blocklist-ips", { workspace_id, blocklist_id: blId });
-    await callTool(client, "update-blocklist", { workspace_id, blocklist_id: blId, query: "classification:malicious", enabled: false });
-    const r = await callTool(client, "delete-blocklist", { workspace_id, blocklist_id: blId });
+    await callTool(client, "get-blocklist", { blocklist_id: blId });
+    await callTool(client, "get-blocklist-ips", { blocklist_id: blId });
+    await callTool(client, "update-blocklist", { blocklist_id: blId, query: "classification:malicious", enabled: false });
+    const r = await callTool(client, "delete-blocklist", { blocklist_id: blId });
     if (r && !r.isError) untrack(blId);
   }
 
   // Alert lifecycle
   const alId = await createTracked(client, "create-alert",
-    { workspace_id, name: "mcp-validate-DELETE-ME", query: "classification:malicious", schedule: { type: "daily", time_of_day: "09:00" }, recipients: [{ type: "email", value: "noreply@greynoise.io" }] }, "alert", workspace_id);
+    { name: "mcp-validate-DELETE-ME", query: "classification:malicious", schedule: { type: "daily", time_of_day: "09:00" }, recipients: [{ type: "email", value: "noreply@greynoise.io" }] }, "alert");
   if (alId) {
-    await callTool(client, "get-alert", { workspace_id, alert_id: alId });
-    await callTool(client, "disable-alert", { workspace_id, alert_id: alId });
-    await callTool(client, "enable-alert", { workspace_id, alert_id: alId });
-    await callTool(client, "update-alert", { workspace_id, alert_id: alId, name: "mcp-validate-DELETE-ME", query: "classification:malicious", schedule: { type: "daily", time_of_day: "10:00" }, recipients: [{ type: "email", value: "noreply@greynoise.io" }] });
-    const r = await callTool(client, "delete-alert", { workspace_id, alert_id: alId });
+    await callTool(client, "get-alert", { alert_id: alId });
+    await callTool(client, "disable-alert", { alert_id: alId });
+    await callTool(client, "enable-alert", { alert_id: alId });
+    await callTool(client, "update-alert", { alert_id: alId, name: "mcp-validate-DELETE-ME", query: "classification:malicious", schedule: { type: "daily", time_of_day: "10:00" }, recipients: [{ type: "email", value: "noreply@greynoise.io" }] });
+    const r = await callTool(client, "delete-alert", { alert_id: alId });
     if (r && !r.isError) untrack(alId);
   }
-  await callTool(client, "test-alert-webhook", { workspace_id, url: "https://example.com/greynoise-mcp-validate" });
+  await callTool(client, "test-alert-webhook", { url: "https://example.com/greynoise-mcp-validate" });
 }
 
 function report() {

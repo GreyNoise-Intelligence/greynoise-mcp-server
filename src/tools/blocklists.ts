@@ -9,7 +9,7 @@ import {
   deletionResultSchema,
 } from "../greynoise/schemas/operational.js";
 
-const wid = z.string().describe("Workspace ID (UUID) that owns the blocklist");
+const wid = z.string().optional().describe("Workspace ID (UUID). Defaults to the workspace the API key is bound to.");
 const bid = z.string().describe("Blocklist ID (UUID)");
 const bl = (id: string) => `v3/workspaces/${encodeURIComponent(id)}/blocklists`;
 
@@ -29,7 +29,8 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     outputSchema: blocklistSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: false },
     handler: async ({ workspace_id, query, name, ip_limit, enabled }, { client }) => {
-      const data = await client.post(bl(workspace_id), blocklistSchema, { query, name, ip_limit, enabled });
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.post(bl(ws), blocklistSchema, { query, name, ip_limit, enabled });
       return { text: `Created blocklist "${data.name ?? data.id}" (id: ${data.id}).`, structured: data };
     },
   });
@@ -45,7 +46,8 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     },
     outputSchema: listBlocklistsSchema,
     handler: async ({ workspace_id, limit, offset }, { client }) => {
-      const data = await client.get(bl(workspace_id), listBlocklistsSchema, { limit, offset });
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.get(bl(ws), listBlocklistsSchema, { limit, offset });
       return { text: `${data.blocklists.length} blocklist(s) returned.`, structured: data };
     },
   });
@@ -57,7 +59,8 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     inputSchema: { workspace_id: wid, blocklist_id: bid },
     outputSchema: blocklistSchema,
     handler: async ({ workspace_id, blocklist_id }, { client }) => {
-      const data = await client.get(`${bl(workspace_id)}/${encodeURIComponent(blocklist_id)}`, blocklistSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.get(`${bl(ws)}/${encodeURIComponent(blocklist_id)}`, blocklistSchema);
       return { text: `Blocklist "${data.name ?? data.id}" — ${data.last_ip_count ?? 0} IPs.`, structured: data };
     },
   });
@@ -77,7 +80,8 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     outputSchema: blocklistSchema,
     annotations: { readOnlyHint: false, destructiveHint: false, idempotentHint: true },
     handler: async ({ workspace_id, blocklist_id, query, name, ip_limit, enabled }, { client }) => {
-      const data = await client.put(`${bl(workspace_id)}/${encodeURIComponent(blocklist_id)}`, blocklistSchema, {
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.put(`${bl(ws)}/${encodeURIComponent(blocklist_id)}`, blocklistSchema, {
         query,
         name,
         ip_limit,
@@ -95,7 +99,8 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     outputSchema: deletionResultSchema,
     annotations: { readOnlyHint: false, destructiveHint: true, idempotentHint: true },
     handler: async ({ workspace_id, blocklist_id }, { client }) => {
-      await client.del(`${bl(workspace_id)}/${encodeURIComponent(blocklist_id)}`, okSchema);
+      const ws = workspace_id ?? (await client.workspaceId());
+      await client.del(`${bl(ws)}/${encodeURIComponent(blocklist_id)}`, okSchema);
       return { text: `Deleted blocklist ${blocklist_id}.`, structured: { id: blocklist_id, deleted: true } };
     },
   });
@@ -111,11 +116,8 @@ export function registerBlocklistTools(server: McpServer, apiBase: string, apiKe
     },
     outputSchema: blocklistIpsSchema,
     handler: async ({ workspace_id, blocklist_id, size }, { client }) => {
-      const data = await client.get(
-        `${bl(workspace_id)}/${encodeURIComponent(blocklist_id)}/ips`,
-        blocklistIpsSchema,
-        { size },
-      );
+      const ws = workspace_id ?? (await client.workspaceId());
+      const data = await client.get(`${bl(ws)}/${encodeURIComponent(blocklist_id)}/ips`, blocklistIpsSchema, { size });
       return { text: `${data.ips.length} IP(s) in blocklist ${blocklist_id}.`, structured: data };
     },
   });

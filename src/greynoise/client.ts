@@ -15,6 +15,8 @@ const USER_AGENT = `${PACKAGE_NAME}/${typeof __PKG_VERSION__ !== "undefined" ? _
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 
+const accountSchema = z.object({ workspace_id: z.string() }).passthrough();
+
 interface RequestOptions {
   method?: "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
   params?: Record<string, unknown>;
@@ -29,9 +31,20 @@ export class GreyNoiseClient {
     private readonly apiKeyGetter: () => string,
   ) {}
 
+  private cachedWorkspaceId?: string;
+
   /** Stable, non-reversible identity for the current API key — safe to use as a cache key. */
   cacheKey(): string {
     return createHash("sha256").update(`${this.apiBase}\0${this.apiKeyGetter()}`).digest("hex");
+  }
+
+  /** The workspace the API key is bound to (from /v1/account), resolved once and cached. */
+  async workspaceId(): Promise<string> {
+    if (!this.cachedWorkspaceId) {
+      const account = await this.get("v1/account", accountSchema);
+      this.cachedWorkspaceId = account.workspace_id;
+    }
+    return this.cachedWorkspaceId;
   }
 
   private buildUrl(endpoint: string, params?: Record<string, unknown>): URL {
