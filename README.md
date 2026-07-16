@@ -205,14 +205,13 @@ Releases are automated via GitHub Actions, with a manual approval gate. Two work
 
 ### Cutting a release
 
-1. Merge your work to `main`.
-2. Bump the version (`package.json` is the single source of truth; the `version` script keeps `manifest.json` in sync, and the User-Agent is injected from it at build time):
-   ```bash
-   npm version minor        # or patch / major — creates the commit + vX.Y.Z tag
-   git push --follow-tags
-   ```
-   The tag must match `package.json`, or the workflow fails.
-3. The tag triggers `release.yml`, which **stages** the version to npm and creates a **draft** GitHub Release. Neither is public yet.
+Push a version tag — that's the whole release. The **git tag is the single source of truth**: the workflow stamps it into `package.json` + `manifest.json` (and the User-Agent) at build time, so there's nothing to bump or keep in sync by hand.
+
+```bash
+git tag v0.5.1 && git push origin v0.5.1
+```
+
+The tag triggers `release.yml`, which **stages** that version to npm and creates a **draft** GitHub Release. Neither is public yet.
 
 ### Approving (the manual gate)
 
