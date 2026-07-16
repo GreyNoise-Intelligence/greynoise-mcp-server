@@ -1,55 +1,19 @@
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { IPQuickCheckV3Response } from "../types/greynoise-response.js";
-import { fetchGreyNoise } from "../utils/fetch.js";
-import { formatQuickCheckV3 } from "../utils/formatters.js";
-import { getApiKey } from "../utils/api-context.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defineTool } from "./define-tool.js";
+import { ipQuickCheckSchema } from "../greynoise/schemas.js";
+import { formatQuickCheckV3 } from "../utils/formatters/ip.js";
 
 export function registerQuickCheckIPTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
-  server.tool(
-    "quick-check-ip",
-    "Get a fast, lightweight check of an IP address from GreyNoise",
-    {
-      ip: z.string().ip().describe("IP address to look up"),
+  defineTool(server, apiBase, apiKeyGetter, {
+    name: "quick-check-ip",
+    title: "Quick Check IP",
+    description: "Get a fast, lightweight classification and business-service check for a single IP address.",
+    inputSchema: { ip: z.union([z.ipv4(), z.ipv6()]).describe("IP address to look up (IPv4 or IPv6)") },
+    outputSchema: ipQuickCheckSchema,
+    handler: async ({ ip }, { client }) => {
+      const data = await client.get(`v3/ip/${encodeURIComponent(ip)}`, ipQuickCheckSchema, { quick: "true" });
+      return { text: formatQuickCheckV3(data), structured: data };
     },
-    async ({ ip }) => {
-      try {
-        const apiKey = (() => {
-          try {
-            return getApiKey();
-          } catch {
-            return apiKeyGetter();
-          }
-        })();
-
-        const quickCheckData = await fetchGreyNoise<IPQuickCheckV3Response>(
-          `v3/ip/${ip}`,
-          apiBase,
-          apiKey,
-          { quick: "true" },
-        );
-
-        const summaryText = formatQuickCheckV3(quickCheckData);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: summaryText,
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error performing quick IP check: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
+  });
 }

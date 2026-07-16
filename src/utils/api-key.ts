@@ -20,5 +20,5 @@ export function getGreyNoiseApiKey(): string {
  * @returns The GreyNoise API base URL
  */
 export function getGreyNoiseApiBase(): string {
-  return "https://api.greynoise.io/";
+  return process.env.GREYNOISE_API_BASE || "https://api.greynoise.io/";
 }

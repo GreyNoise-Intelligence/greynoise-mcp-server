@@ -1,19 +1,16 @@
-# MCP Server For GreyNoise
+# GreyNoise MCP Server
 
-**REQUIRES AN ENTERPRISE API KEY**
+A [Model Context Protocol](https://modelcontextprotocol.io) server for the GreyNoise Enterprise API. It gives MCP-compatible clients (Claude Desktop, Claude Code, Cursor, etc.) access to GreyNoise threat intelligence — IP context, GNQL search, Recall timeseries, tags, CVEs, sensor sessions, BSI, callback/C2 data — plus operational tools to act on findings (blocklists and alerts).
+
+**Requires a GreyNoise Enterprise API key.** Some capabilities (BSI, callback, blocklists, alerts) require additional plan entitlements; the server exposes every tool and returns a clear "not entitled" message if your plan doesn't include one.
 
 ## Installation
 
-### MCPB (MCP Bundle)
+### MCPB bundle (Claude Desktop)
 
-If you use Claude Desktop or another client that supports MCPB bundles, download `greynoise-mcp-server.mcpb` from the [releases page](https://github.com/GreyNoise-Intelligence/greynoise-mcp-server/releases) and double-click to install.
+Download `greynoise-mcp-server.mcpb` from the [releases page](https://github.com/GreyNoise-Intelligence/greynoise-mcp-server/releases) and double-click to install. It prompts for your API key.
 
-### For Production/NPX Usage
-```bash
-npx @greynoise/greynoise-mcp-server --help
-```
-
-Sample entry for Claude Desktop:
+### npx (config-based clients)
 
 ```json
 {
@@ -21,15 +18,13 @@ Sample entry for Claude Desktop:
     "greynoise": {
       "command": "npx",
       "args": ["@greynoise/greynoise-mcp-server"],
-      "env": {
-        "GREYNOISE_API_KEY": "your-greynoise-api-key"
-      }
+      "env": { "GREYNOISE_API_KEY": "your-greynoise-api-key" }
     }
   }
 }
 ```
 
-Or for local development:
+### Local build
 
 ```json
 {
@@ -37,163 +32,200 @@ Or for local development:
     "greynoise": {
       "command": "node",
       "args": ["/absolute/path/to/greynoise-mcp-server/build/index.js"],
-      "env": {
-        "GREYNOISE_API_KEY": "your-greynoise-api-key"
-      }
+      "env": { "GREYNOISE_API_KEY": "your-greynoise-api-key" }
     }
   }
 }
 ```
 
-### For Development
+## Configuration
 
-Clone the repo and then `npm install && npm run build`.
+| Variable | Required | Default | Purpose |
+|---|---|---|---|
+| `GREYNOISE_API_KEY` | yes (stdio) | — | Enterprise API key. For HTTP transport the key is taken per-request from the `Authorization: Bearer` header instead. |
+| `GREYNOISE_API_BASE` | no | `https://api.greynoise.io/` | Override the API base (e.g. staging). |
+| `PORT` | no | `9191` | HTTP transport listen port. |
+| `MCP_ALLOWED_HOSTS` | no | `127.0.0.1:<port>,localhost:<port>` | Allowed Host header values (DNS-rebinding protection) for HTTP transport. |
 
-## Build System
+## Transports
 
-This project uses `tsup` for modern bundling:
-
-- **`npm run build`**: Creates optimized bundle for distribution
-- **`npm run build:dev`**: Development build with source maps
-- **`npm run dev`**: Watch mode with auto-rebuild
-
-The bundled output includes all core dependencies except Express (for HTTP transport) and dotenv (due to dynamic require limitations).
-
-## Transport Options
-
-### stdio (Default)
 ```bash
-npx @greynoise/greynoise-mcp-server --transport stdio
+npx @greynoise/greynoise-mcp-server                      # stdio (default)
+npx @greynoise/greynoise-mcp-server --transport http     # streamable HTTP on $PORT
 ```
 
-### http
-HTTP transport requires Express to be available:
-```bash
-npm install express
-node @greynoise/greynoise-mcp-server --transport http
-```
+stdio is the default and what desktop/CLI clients use. HTTP transport authenticates each request via a `Bearer` token, builds an isolated server per request, and enforces DNS-rebinding protection. Express is loaded lazily for HTTP; install it if you use that transport (`npm install express`).
 
-## Available Tools
+## Capabilities
 
-### IP Analysis
+Every tool returns both human-readable text and machine-readable `structuredContent` (validated against a published `outputSchema`), and carries MCP annotations so clients can apply safety policy — read-only tools run freely; write tools are marked, and destructive ones (`delete-*`) request confirmation.
 
-1. **lookup-ip-context** - Get detailed context for an IP address including Internet Scanner Intelligence (ISI) and Business Service Intelligence (BSI). Returns classification, tags, scanning activity, HTTP/TLS/SSH fingerprints, geographic info, and more.
+### IP analysis
 
-2. **quick-check-ip** - Fast, lightweight check returning just classification and BSI status.
-
-3. **multi-ip-check** - Check up to 10,000 IP addresses at once. Returns classification, BSI status, and trust level for each IP.
+| Tool | Description |
+|---|---|
+| `lookup-ip-context` | Full context for one IP: classification, tags, ISI (scan/HTTP/TLS/SSH/TCP raw data), BSI, geo, network metadata. |
+| `quick-check-ip` | Fast, lightweight classification + business-service check for one IP. |
+| `multi-ip-check` | Check up to 10,000 IPs at once, with a summary breakdown. |
 
 ### GNQL (GreyNoise Query Language)
 
-4. **gnql-query** - Search GreyNoise data with GNQL. Returns full IP context results including raw scan data. Supports scroll pagination.
+| Tool | Description |
+|---|---|
+| `gnql-query` | Full GNQL search including raw scan data; scroll pagination. |
+| `gnql-metadata-query` | Lighter GNQL search (metadata only). Supports `format: "csv"` for spreadsheet output. |
+| `gnql-stats` | Aggregate statistics for a GNQL query (top orgs, countries, tags, ASNs, classifications, …). |
 
-5. **gnql-metadata-query** - Lightweight GNQL search returning IP metadata without raw scan data. Supports CSV output format.
+### Recall (temporal analysis)
 
-6. **gnql-stats** - Get aggregate statistics for GNQL query results (classification breakdown, top organizations, countries, tags, etc).
-
-### Recall (Temporal Analysis)
-
-7. **gnql-timeseries** - Retrieve hourly IP activity records for a time range. Enables temporal analysis of scanning patterns.
-
-8. **gnql-timeseries-stats** - Get unique IP counts per hour/day over a time range for trend analysis.
+| Tool | Description |
+|---|---|
+| `gnql-timeseries` | Hourly IP-activity records for a query over a time range. |
+| `gnql-timeseries-stats` | Unique-IP counts per hour/day over a time range. |
 
 ### Tags
 
-9. **get-tag-list** - Retrieve the complete list of GreyNoise tags with metadata.
-
-10. **search-tags** - Search for tags matching a query.
-
-11. **get-tag-details** - Get comprehensive metadata about a specific tag.
-
-12. **get-tag-activity** - Get activity data for a tag including trends over time.
-
-13. **analyze-tags-activity** - Analyze activity patterns across multiple tags.
+| Tool | Description |
+|---|---|
+| `get-tag-list` | Complete tag list (cached 1h). |
+| `search-tags` | Search tags by query / category / intention / CVE. |
+| `get-tag-details` | Full record for one tag by id or slug. |
+| `get-tag-activity` | Time-series activity for a tag or CVE. |
+| `analyze-tags-activity` | Filter tags and aggregate their activity into a summary. |
 
 ### Vulnerabilities
 
-14. **get-trending-vulnerabilities** - Get vulnerabilities actively being exploited in the wild.
+| Tool | Description |
+|---|---|
+| `get-cve-details` | GreyNoise intel for one CVE: CVSS/EPSS, KEV status, exploitation + observed activity. |
+| `get-trending-vulnerabilities` | Currently trending and anomalous vulnerability tags. |
 
-15. **get-cve-details** - Get detailed CVE information including GreyNoise exploitation observations.
+### Sessions (sensor network data)
 
-### Sessions (PCAP)
+| Tool | Description |
+|---|---|
+| `search-sessions` | Query/filter sensor sessions over a time range (Lucene syntax). |
+| `session-fields` | Discover the queryable session field schema. |
+| `session-counts` | Session counts grouped by one or more fields (nested drill-down). |
+| `session-connections` | Connection graph (nodes + links) between source/destination fields. |
+| `session-timeseries` | Session volume over time, optionally grouped by a field. |
+| `session-unique-values` | Distinct values of a field, optionally with counts. |
+| `get-session` | Full metadata for one session by ID. |
+| `get-session-pcap` | Download one session's PCAP to a temp file. |
+| `export-sessions-pcap` | Export a PCAP across multiple sessions matching a query. |
+| `export-session-data` | Download one session as PCAP or raw payload. |
 
-16. **get-session** - Get full metadata and connection details for a single sensor session by ID.
+### BSI — Business Service Intelligence *(requires BSI license)*
 
-17. **get-session-pcap** - Download the raw PCAP capture for a single session. Saves to a temporary file and returns the path.
+| Tool | Description |
+|---|---|
+| `bsi-lookup` | Provider matches for one IPv4. |
+| `bsi-bulk-lookup` | Provider matches for up to 1,000 IPv4 addresses. |
+| `bsi-trust-stats` / `bsi-company-stats` / `bsi-category-stats` | IP/CIDR counts grouped by trust level / company / category. |
 
-18. **export-sessions-pcap** - Export a PCAP file containing packets from multiple sessions matching a time range and optional Lucene query. Saves to a temporary file and returns the path.
+### Callback / C2 *(requires entitlement)*
 
-## Usage Examples
+| Tool | Description |
+|---|---|
+| `callback-ip-lookup` | One callback/C2 IP: attack stage, RIOT status, enrichment, downloaded files. |
+| `list-callback-ips` | Paginated callback IPs filtered by stage, dates, file attributes, scanners. |
+| `export-callback-ips` | Export matching callback IPs as a plain list. |
+| `callback-overview` | Aggregate statistics for matching callback IPs. |
 
-### IP Analysis
+### Operational — Blocklists *(write; requires entitlement)*
 
-```javascript
-// Get detailed context for an IP
-{ "tool_name": "lookup-ip-context", "parameters": { "ip": "71.6.135.131" } }
+| Tool | Notes |
+|---|---|
+| `create-blocklist` | Create a dynamic blocklist from a GNQL query. |
+| `list-blocklists` / `get-blocklist` / `get-blocklist-ips` | Read. |
+| `update-blocklist` | Update query/name/limit/enabled. |
+| `delete-blocklist` | **Destructive** — clients confirm. |
 
-// Quick check
-{ "tool_name": "quick-check-ip", "parameters": { "ip": "8.8.8.8" } }
+### Operational — Alerts *(write; requires entitlement)*
 
-// Bulk check
-{ "tool_name": "multi-ip-check", "parameters": { "ips": ["8.8.8.8", "1.1.1.1"] } }
+| Tool | Notes |
+|---|---|
+| `create-alert` | Scheduled GNQL alert with email/webhook recipients. |
+| `list-alerts` / `get-alert` | Read. |
+| `update-alert` | Update query/schedule/recipients/name/enabled. |
+| `enable-alert` / `disable-alert` | Resume / pause. |
+| `delete-alert` | **Destructive** — clients confirm. |
+| `test-alert-webhook` | Send a test payload to a webhook URL. |
+
+## Resources
+
+Read-only URIs clients can fetch or reference directly:
+
+| Resource | Description |
+|---|---|
+| `greynoise://ip/{ip}` | IP context (JSON). |
+| `greynoise://cve/{cveId}` | CVE exploitation details (JSON). |
+| `greynoise://tag/{slug}` | Tag metadata by slug (with slug autocompletion). |
+| `greynoise://article/{id}` | A single GreyNoise research article. |
+| `greynoise://articles` | List of published research articles. |
+| `greynoise://article-categories` | Article categories. |
+
+## Prompts
+
+Guided analysis workflows:
+
+| Prompt | Arguments (`*` = required) |
+|---|---|
+| `ip-threat-analysis` | `ip*`, `include_related` |
+| `cve-analysis` | `cve_id*`, `timeframe` |
+| `vendor-threat-report` | `vendor*`, `technology`, `timeframe*` |
+| `emerging-threat-report` | `days`, `focus_area` |
+| `security-posture-assessment` | `organization*`, `technologies*`, `industry` |
+| `threat-hunting` | `indicator_type*`, `indicator_value*`, `environment*` |
+
+## Development
+
+```bash
+npm install
+npm run build        # bundle with tsup -> build/index.js
+npm run dev          # watch + rebuild + run
+npm test             # jest
+npm run typecheck    # tsc --noEmit
+npm run pack:mcpb    # build the .mcpb bundle
 ```
 
-### GNQL Queries
+The zod schemas in `src/greynoise/schemas/` are the single source of truth for API response shapes (they validate responses at runtime and drive each tool's `outputSchema`). A vendored copy of the API's OpenAPI spec lives in `spec/oas-production.yaml`; run the `/update-api` reconciliation to check tools/schemas against it.
 
-```javascript
-// Search for malicious IPs seen today
-{ "tool_name": "gnql-query", "parameters": { "query": "classification:malicious last_seen:1d", "size": 10 } }
+## Releasing
 
-// Lightweight metadata search
-{ "tool_name": "gnql-metadata-query", "parameters": { "query": "tags:Mirai", "size": 25 } }
+Releases are automated via GitHub Actions, with a manual approval gate. Two workflows:
 
-// Get stats for a query
-{ "tool_name": "gnql-stats", "parameters": { "query": "classification:malicious", "count": 10 } }
+- **`.github/workflows/ci.yml`** — runs on every PR/push: typecheck, tests, build, `npm audit`, and a `.mcpb` build. No credentials required.
+- **`.github/workflows/release.yml`** — runs on a `v*` tag: publishes to npm via **staged publishing** and drafts a GitHub Release with the `.mcpb`. Nothing goes public without a human.
+
+### Prerequisites (one-time, already configured)
+
+- **npm Trusted Publisher (OIDC)** — configured on npmjs.com for this repo + `release.yml` with **`npm stage publish`** (stage-only) permission. No `NPM_TOKEN` is stored; auth is tokenless via GitHub OIDC.
+- The workflow has `id-token: write` and `contents: write`, and upgrades npm to satisfy staged publishing (npm ≥ 11.15.0, Node ≥ 22.14).
+
+### Cutting a release
+
+1. Merge your work to `main`.
+2. Bump the version (`package.json` is the single source of truth; the `version` script keeps `manifest.json` in sync, and the User-Agent is injected from it at build time):
+   ```bash
+   npm version minor        # or patch / major — creates the commit + vX.Y.Z tag
+   git push --follow-tags
+   ```
+   The tag must match `package.json`, or the workflow fails.
+3. The tag triggers `release.yml`, which **stages** the version to npm and creates a **draft** GitHub Release. Neither is public yet.
+
+### Approving (the manual gate)
+
+Staged publishes require a maintainer with 2FA — they can't be approved from CI (by design):
+
+```bash
+npm stage list @greynoise/greynoise-mcp-server   # find the stage-id
+npm stage view <stage-id>                         # (optional) inspect
+npm stage approve <stage-id>                       # 2FA -> version goes live
 ```
 
-### Temporal Analysis (Recall)
-
-```javascript
-// Hourly activity for an IP
-{ "tool_name": "gnql-timeseries", "parameters": { "query": "ip:71.6.135.131" } }
-
-// Daily unique IP counts for malicious activity
-{ "tool_name": "gnql-timeseries-stats", "parameters": { "query": "classification:malicious", "interval": "day" } }
-```
-
-### Sessions
-
-```javascript
-// Get session metadata
-{ "tool_name": "get-session", "parameters": { "session_id": "7e98a36cf76f29a020876691892c5f" } }
-
-// Download session PCAP
-{ "tool_name": "get-session-pcap", "parameters": { "session_id": "7e98a36cf76f29a020876691892c5f" } }
-
-// Export PCAPs for sessions matching a query
-{ "tool_name": "export-sessions-pcap", "parameters": { "start_time": "2026-01-01T00:00:00Z", "end_time": "2026-01-07T23:59:59Z", "query": "destination.port:443", "size": 50 } }
-```
-
-## Available Prompts
-
-1. **vendor-threat-report** - Comprehensive threat report for a vendor technology.
-   Parameters: vendor (required), technology (optional), timeframe 1-90 days (required)
-
-2. **ip-threat-analysis** - Detailed IP threat analysis with classification, tags, history, and recommendations.
-   Parameters: ip (required), include_related (optional)
-
-3. **cve-analysis** - CVE analysis including exploitation status and risk assessment.
-   Parameters: cve_id (required), timeframe 1-90 days (optional)
-
-4. **emerging-threat-report** - Report on emerging threats based on trending activity.
-   Parameters: days (optional: 1/7/30), focus_area (optional)
-
-5. **security-posture-assessment** - Security posture assessment for an organization's technology stack.
-   Parameters: organization (required), technologies (required), industry (optional)
-
-6. **threat-hunting** - Threat hunting plan for specific indicators or patterns.
-   Parameters: indicator_type (required: ip/tag/behavior/actor/cve), indicator_value (required), environment (required)
+(Or approve from the package page on npmjs.com.) Then publish the draft GitHub Release from the Releases tab to make the `.mcpb` public.
 
 ## Changelog
 
-See [NEWS.md](NEWS.md) for release notes.
+See [NEWS.md](NEWS.md).

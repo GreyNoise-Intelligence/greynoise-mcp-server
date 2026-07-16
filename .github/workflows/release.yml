@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: write
+  id-token: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          registry-url: "https://registry.npmjs.org"
+
+      # Staged publishing requires npm >= 11.15.0 (and Node >= 22.14)
+      - run: npm install -g npm@11.15.0
+
+      - run: npm ci
+
+      - name: Verify tag matches package.json version
+        run: |
+          TAG="${GITHUB_REF_NAME#v}"
+          PKG="$(node -p "require('./package.json').version")"
+          if [ "$TAG" != "$PKG" ]; then
+            echo "tag $TAG does not match package.json $PKG"
+            exit 1
+          fi
+
+      - run: npm test
+      - run: npm run build
+
+      # Staged publish via OIDC Trusted Publisher (stage-only permission) — submits to the
+      # npm staging area; a maintainer approves it (2FA) on npmjs.com to go live. No token.
+      - run: npm stage publish --provenance --access public
+
+      - name: Build MCPB bundle
+        run: npm run pack:mcpb
+
+      # Draft so the .mcpb release stays human-gated alongside the npm staged publish
+      - name: Draft GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: "*.mcpb"
+          generate_release_notes: true
+          draft: true

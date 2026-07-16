@@ -1,10 +1,10 @@
 import { describe, expect, it } from "@jest/globals";
-import type { GnqlStatsResponse } from "../types/greynoise-response.js";
-import { formatGnqlStats } from "./formatters.js";
+import type { GnqlStats } from "../greynoise/schemas/gnql.js";
+import { formatGnqlStats } from "./formatters/gnql.js";
 
 describe("formatGnqlStats", () => {
   it("formats v3 adjusted query and operating system fields", () => {
-    const data: GnqlStatsResponse = {
+    const data: GnqlStats = {
       count: 42,
       query: "classification:malicious",
       adjusted_query: "(classification:malicious) last_seen:90d",

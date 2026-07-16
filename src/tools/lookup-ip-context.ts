@@ -1,57 +1,20 @@
 import { z } from "zod";
-import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
-import { IPContextResponse } from "../types/greynoise-response.js";
-import { fetchGreyNoise } from "../utils/fetch.js";
-import { formatIPContext } from "../utils/formatters.js";
-import { getApiKey } from "../utils/api-context.js";
+import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
+import { defineTool } from "./define-tool.js";
+import { ipContextSchema } from "../greynoise/schemas.js";
+import { formatIPContext } from "../utils/formatters/ip.js";
 
 export function registerLookupIPContextTool(server: McpServer, apiBase: string, apiKeyGetter: () => string) {
-  server.tool(
-    "lookup-ip-context",
-    "Get detailed GreyNoise context information about an IP address",
-    {
-      ip: z.string().ip().describe("IP address to look up"),
+  defineTool(server, apiBase, apiKeyGetter, {
+    name: "lookup-ip-context",
+    title: "Look Up IP Context",
+    description:
+      "Get detailed GreyNoise context for a single IP: classification, tags, Internet Scanner Intelligence (scan/HTTP/TLS/SSH/TCP raw data), Business Service Intelligence, geo, and network metadata.",
+    inputSchema: { ip: z.union([z.ipv4(), z.ipv6()]).describe("IP address to look up (IPv4 or IPv6)") },
+    outputSchema: ipContextSchema,
+    handler: async ({ ip }, { client }) => {
+      const data = await client.get(`v3/ip/${encodeURIComponent(ip)}`, ipContextSchema);
+      return { text: formatIPContext(data), structured: data };
     },
-    async ({ ip }) => {
-      try {
-        // Get API key from context or fallback function
-        const apiKey = (() => {
-          try {
-            return getApiKey();
-          } catch {
-            return apiKeyGetter();
-          }
-        })();
-        
-        // Get IP context information
-        const contextData = await fetchGreyNoise<IPContextResponse>(
-          `v3/ip/${ip}`,
-          apiBase,
-          apiKey,
-        );
-
-        // Format a readable response
-        const summaryText = formatIPContext(contextData);
-
-        return {
-          content: [
-            {
-              type: "text",
-              text: summaryText,
-            },
-          ],
-        };
-      } catch (error) {
-        return {
-          content: [
-            {
-              type: "text",
-              text: `Error looking up IP context: ${error instanceof Error ? error.message : String(error)}`,
-            },
-          ],
-          isError: true,
-        };
-      }
-    },
-  );
+  });
 }

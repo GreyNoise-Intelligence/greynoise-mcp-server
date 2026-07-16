@@ -2,13 +2,16 @@ import { z } from "zod";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 
 export function registerSecurityPostureAssessmentPrompt(server: McpServer) {
-  server.prompt(
+  server.registerPrompt(
     "security-posture-assessment",
-    "Generate a security posture assessment for an organization based on technologies and vulnerabilities",
     {
+      title: "Security Posture Assessment",
+      description: "Generate a security posture assessment for an organization based on technologies and vulnerabilities",
+      argsSchema: {
       organization: z.string().describe("The organization name"),
       technologies: z.string().describe("Comma-separated list of key technologies used by the organization"),
       industry: z.string().optional().describe("The industry sector of the organization"),
+    },
     },
     async (args, extra) => {
       const organization = args.organization;
