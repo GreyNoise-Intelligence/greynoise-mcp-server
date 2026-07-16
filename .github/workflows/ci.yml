@@ -29,3 +29,28 @@ jobs:
         with:
           name: greynoise-mcp-server-mcpb
           path: "*.mcpb"
+
+  # Live-API integration check: drives every tool/prompt/resource through a real MCP client.
+  # Reads-only (no GN_TEST_WORKSPACE, so it never mutates). Requires the GREYNOISE_API_KEY repo secret;
+  # skips cleanly when the secret is absent (e.g. fork PRs, which don't receive secrets).
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+      - run: npm run build
+      - name: Validate against live GreyNoise API
+        env:
+          GREYNOISE_API_KEY: ${{ secrets.GREYNOISE_API_KEY }}
+        run: |
+          if [ -z "$GREYNOISE_API_KEY" ]; then
+            echo "::warning::GREYNOISE_API_KEY secret not set — skipping live validation"
+            exit 0
+          fi
+          npm run validate

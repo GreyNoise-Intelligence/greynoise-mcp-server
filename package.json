@@ -12,6 +12,7 @@
     "version": "node scripts/sync-version.mjs && git add manifest.json",
     "build": "tsup && chmod 755 build/index.js",
     "pack:mcpb": "npx --yes @anthropic-ai/mcpb pack",
+    "validate": "node scripts/validate.mjs",
     "typecheck": "tsc --noEmit",
     "build:dev": "tsup src/index.ts --format esm --target node18 --sourcemap",
     "build:standalone": "npm run build && npm pack && echo 'Package ready for npx distribution'",
