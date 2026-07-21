@@ -1,8 +1,8 @@
 # GreyNoise MCP Server
 
-A [Model Context Protocol](https://modelcontextprotocol.io) server for the GreyNoise Enterprise API. It gives MCP-compatible clients (Claude Desktop, Claude Code, Cursor, etc.) access to GreyNoise threat intelligence — IP context, GNQL search, Recall timeseries, tags, CVEs, sensor sessions, BSI, callback/C2 data — plus operational tools to act on findings (blocklists and alerts).
+A [Model Context Protocol](https://modelcontextprotocol.io) server for the GreyNoise API. It gives MCP-compatible clients (Claude Desktop, Claude Code, Cursor, etc.) access to GreyNoise threat intelligence — IP context, GNQL search, Recall timeseries, tags, CVEs, sensor sessions, BSI, callback/C2 data — plus operational tools to act on findings (blocklists and alerts).
 
-**Requires a GreyNoise Enterprise API key.** Some capabilities (BSI, callback, blocklists, alerts) require additional plan entitlements; the server exposes every tool and returns a clear "not entitled" message if your plan doesn't include one.
+**Requires a GreyNoise API key.** Your plan's entitlements determine which capabilities are available; the server exposes every tool and returns a clear "not entitled" message for any capability your plan doesn't include, so the rest keep working.
 
 ## Installation
 
@@ -42,7 +42,7 @@ Download `greynoise-mcp-server.mcpb` from the [releases page](https://github.com
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `GREYNOISE_API_KEY` | yes (stdio) | — | Enterprise API key. For HTTP transport the key is taken per-request from the `Authorization: Bearer` header instead. |
+| `GREYNOISE_API_KEY` | yes (stdio) | — | GreyNoise API key. For HTTP transport the key is taken per-request from the `Authorization: Bearer` header instead. |
 | `GREYNOISE_API_BASE` | no | `https://api.greynoise.io/` | Override the API base (e.g. staging). |
 | `PORT` | no | `9191` | HTTP transport listen port. |
 | `MCP_ALLOWED_HOSTS` | no | `127.0.0.1:<port>,localhost:<port>` | Allowed Host header values (DNS-rebinding protection) for HTTP transport. |

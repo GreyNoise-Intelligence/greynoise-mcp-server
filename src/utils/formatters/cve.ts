@@ -31,29 +31,38 @@ export function formatCVEDetails(data: CVEDetails, tagActivityIPs = 0): string {
   response += `**In CISA Known Exploited Vulnerabilities Catalog**: ${data.exploitation_details.exploitation_registered_in_kev ? "Yes" : "No"}\n`;
   response += `**EPSS Score**: ${(data.exploitation_details.epss_score * 100).toFixed(2)}% (probability of exploitation)\n\n`;
 
-  response += `## Exploitation Statistics\n\n`;
-  response += `**Available Exploits**: ${data.exploitation_stats.number_of_available_exploits}\n`;
-  response += `**Threat Actors Exploiting**: ${data.exploitation_stats.number_of_threat_actors_exploiting_vulnerability}\n`;
-  response += `**Botnets Exploiting**: ${data.exploitation_stats.number_of_botnets_exploiting_vulnerability}\n\n`;
-
-  response += `## Observed Activity\n\n`;
-  if (!data.exploitation_activity.activity_seen && tagActivityIPs > 0) {
-    response += `**Activity Seen by GreyNoise**: Yes — ${tagActivityIPs} IPs in the last 30d, from the associated tag timeline\n`;
-    response += `> The CVE record reports no activity, but the associated tag timeline shows ${tagActivityIPs} IPs. The CVE rollup lags backfilled tag hits; use get-tag-activity for exploitation timing.\n\n`;
-  } else {
-    response += `**Activity Seen by GreyNoise**: ${data.exploitation_activity.activity_seen ? "Yes" : "No"}\n\n`;
+  if (data.exploitation_stats) {
+    response += `## Exploitation Statistics\n\n`;
+    response += `**Available Exploits**: ${data.exploitation_stats.number_of_available_exploits}\n`;
+    response += `**Threat Actors Exploiting**: ${data.exploitation_stats.number_of_threat_actors_exploiting_vulnerability}\n`;
+    response += `**Botnets Exploiting**: ${data.exploitation_stats.number_of_botnets_exploiting_vulnerability}\n\n`;
   }
 
-  if (data.exploitation_activity.activity_seen) {
-    response += `### Benign IP Counts\n`;
-    response += `- **Last 24 hours**: ${data.exploitation_activity.benign_ip_count_1d}\n`;
-    response += `- **Last 10 days**: ${data.exploitation_activity.benign_ip_count_10d}\n`;
-    response += `- **Last 30 days**: ${data.exploitation_activity.benign_ip_count_30d}\n\n`;
+  if (data.exploitation_activity) {
+    response += `## Observed Activity\n\n`;
+    if (!data.exploitation_activity.activity_seen && tagActivityIPs > 0) {
+      response += `**Activity Seen by GreyNoise**: Yes — ${tagActivityIPs} IPs in the last 30d, from the associated tag timeline\n`;
+      response += `> The CVE record reports no activity, but the associated tag timeline shows ${tagActivityIPs} IPs. The CVE rollup lags backfilled tag hits; use get-tag-activity for exploitation timing.\n\n`;
+    } else {
+      response += `**Activity Seen by GreyNoise**: ${data.exploitation_activity.activity_seen ? "Yes" : "No"}\n\n`;
+    }
 
-    response += `### Malicious IP Counts\n`;
-    response += `- **Last 24 hours**: ${data.exploitation_activity.threat_ip_count_1d}\n`;
-    response += `- **Last 10 days**: ${data.exploitation_activity.threat_ip_count_10d}\n`;
-    response += `- **Last 30 days**: ${data.exploitation_activity.threat_ip_count_30d}\n`;
+    if (data.exploitation_activity.activity_seen) {
+      response += `### Benign IP Counts\n`;
+      response += `- **Last 24 hours**: ${data.exploitation_activity.benign_ip_count_1d}\n`;
+      response += `- **Last 10 days**: ${data.exploitation_activity.benign_ip_count_10d}\n`;
+      response += `- **Last 30 days**: ${data.exploitation_activity.benign_ip_count_30d}\n\n`;
+
+      response += `### Malicious IP Counts\n`;
+      response += `- **Last 24 hours**: ${data.exploitation_activity.threat_ip_count_1d}\n`;
+      response += `- **Last 10 days**: ${data.exploitation_activity.threat_ip_count_10d}\n`;
+      response += `- **Last 30 days**: ${data.exploitation_activity.threat_ip_count_30d}\n`;
+    }
+  }
+
+  if (!data.exploitation_stats || !data.exploitation_activity) {
+    response += `## Exploitation Statistics & Observed Activity\n\n`;
+    response += `Some of this data is not included in this API key's plan. Its absence is an access limitation, not evidence that no exploitation exists.\n`;
   }
 
   return response;

@@ -29,10 +29,10 @@ export const gnqlIpItemSchema = passthrough({
   ip: z.string(),
   internet_scanner_intelligence: gnqlItemScannerSchema.optional(),
   business_service_intelligence: passthrough({
-    found: z.boolean().optional(),
-    name: z.string().optional(),
-    trust_level: z.string().optional(),
-  }).optional(),
+    found: z.boolean().nullish(),
+    name: z.string().nullish(),
+    trust_level: z.string().nullish(),
+  }).nullish(),
 });
 
 export const gnqlQuerySchema = passthrough({
