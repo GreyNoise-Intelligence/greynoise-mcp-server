@@ -6,7 +6,7 @@ export function toUserMessage(error: unknown): string {
       case 401:
         return "Authentication failed (401): the GreyNoise API key is missing, invalid, or expired. Check the GREYNOISE_API_KEY.";
       case 403:
-        return "Not entitled (403): your GreyNoise plan does not include access to this capability. Contact your GreyNoise account team or sales@greynoise.io to enable it.";
+        return "Not entitled (403): this GreyNoise API key's plan does not include this capability. This is an access limitation, not evidence that the data is absent.";
       case 404:
         return `Not found (404): ${error.endpoint}.`;
       case 429:

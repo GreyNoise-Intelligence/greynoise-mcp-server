@@ -27,7 +27,7 @@ export const cveDetailsSchema = passthrough({
     number_of_available_exploits: z.number(),
     number_of_threat_actors_exploiting_vulnerability: z.number(),
     number_of_botnets_exploiting_vulnerability: z.number(),
-  }),
+  }).nullish(),
   exploitation_activity: passthrough({
     activity_seen: z.boolean(),
     benign_ip_count_1d: z.number(),
@@ -36,7 +36,7 @@ export const cveDetailsSchema = passthrough({
     threat_ip_count_1d: z.number(),
     threat_ip_count_10d: z.number(),
     threat_ip_count_30d: z.number(),
-  }),
+  }).nullish(),
 });
 
 export const trendingTagSchema = passthrough({
