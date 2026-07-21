@@ -23,8 +23,8 @@ export const tagActivitySchema = passthrough({
     total_ips: z.number().optional(),
     classification: z.record(z.string(), z.number()).optional(),
   }).optional(),
-  timeline: z
-    .array(passthrough({ bucket: z.string(), metrics: passthrough({ total_ips: z.number() }) }))
+  activity: z
+    .record(z.string(), z.array(passthrough({ timestamp: z.string(), active_ips: z.number() })))
     .optional(),
 });
 

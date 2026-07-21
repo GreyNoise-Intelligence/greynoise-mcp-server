@@ -5,7 +5,7 @@ function utc(value: string): string {
   return isNaN(d.getTime()) ? value : `${d.toISOString().replace("T", " ").replace(/\.\d+Z$/, "")} UTC`;
 }
 
-export function formatCVEDetails(data: CVEDetails): string {
+export function formatCVEDetails(data: CVEDetails, tagActivityIPs = 0): string {
   let response = `# CVE Details: ${data.id}\n\n`;
 
   response += `## Vulnerability Information\n\n`;
@@ -38,9 +38,13 @@ export function formatCVEDetails(data: CVEDetails): string {
     response += `**Botnets Exploiting**: ${data.exploitation_stats.number_of_botnets_exploiting_vulnerability}\n\n`;
   }
 
-  if (data.exploitation_activity) {
-    response += `## Observed Activity\n\n`;
+  response += `## Observed Activity\n\n`;
+  if (!data.exploitation_activity.activity_seen && tagActivityIPs > 0) {
+    response += `**Activity Seen by GreyNoise**: Yes — ${tagActivityIPs} IPs in the last 30d, from the associated tag timeline\n`;
+    response += `> The CVE record reports no activity, but the associated tag timeline shows ${tagActivityIPs} IPs. The CVE rollup lags backfilled tag hits; use get-tag-activity for exploitation timing.\n\n`;
+  } else {
     response += `**Activity Seen by GreyNoise**: ${data.exploitation_activity.activity_seen ? "Yes" : "No"}\n\n`;
+  }
 
     if (data.exploitation_activity.activity_seen) {
       response += `### Benign IP Counts\n`;
