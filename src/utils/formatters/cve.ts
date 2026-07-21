@@ -60,9 +60,9 @@ export function formatCVEDetails(data: CVEDetails, tagActivityIPs = 0): string {
     }
   }
 
-  if (!data.exploitation_stats && !data.exploitation_activity) {
+  if (!data.exploitation_stats || !data.exploitation_activity) {
     response += `## Exploitation Statistics & Observed Activity\n\n`;
-    response += `Not included in this API key's plan. Their absence here is an access limitation, not evidence that no exploitation exists.\n`;
+    response += `Some of this data is not included in this API key's plan. Its absence is an access limitation, not evidence that no exploitation exists.\n`;
   }
 
   return response;

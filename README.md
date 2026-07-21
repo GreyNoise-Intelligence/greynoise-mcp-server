@@ -2,7 +2,7 @@
 
 A [Model Context Protocol](https://modelcontextprotocol.io) server for the GreyNoise API. It gives MCP-compatible clients (Claude Desktop, Claude Code, Cursor, etc.) access to GreyNoise threat intelligence — IP context, GNQL search, Recall timeseries, tags, CVEs, sensor sessions, BSI, callback/C2 data — plus operational tools to act on findings (blocklists and alerts).
 
-**Requires a GreyNoise API key.** Your plan's entitlements determine which capabilities are available; the server exposes every tool and returns a clear "not entitled" message for any your plan doesn't include, so the rest keep working.
+**Requires a GreyNoise API key.** Your plan's entitlements determine which capabilities are available; the server exposes every tool and returns a clear "not entitled" message for any capability your plan doesn't include, so the rest keep working.
 
 ## Installation
 
