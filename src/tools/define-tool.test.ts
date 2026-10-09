@@ -18,6 +18,19 @@ describe("toUserMessage", () => {
     expect(toUserMessage(new GreyNoiseApiError(429, "v3/gnql", "429"))).toContain("Rate limited (429)");
   });
 
+  it("passes the API's 429 message through, so a quota's reset date is not lost", () => {
+    const body = JSON.stringify({ error: "We love that you love GreyNoise! Your searches will reset on October 15." });
+    const msg = toUserMessage(new GreyNoiseApiError(429, "v3/ip/8.8.8.8", `429 ${body}`));
+    expect(msg).toContain("Rate limited (429)");
+    expect(msg).toContain("Your searches will reset on October 15.");
+    expect(msg).not.toContain("Wait a moment");
+  });
+
+  it("passes a plain-text 429 body through", () => {
+    const msg = toUserMessage(new GreyNoiseApiError(429, "v3/gnql", "429 slow down"));
+    expect(msg).toContain("slow down");
+  });
+
   it("falls back to a generic message for non-API errors", () => {
     expect(toUserMessage(new Error("boom"))).toBe("Error: boom");
   });
