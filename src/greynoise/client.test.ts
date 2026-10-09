@@ -41,6 +41,14 @@ describe("GreyNoiseClient", () => {
     await expect(client.get("v3/ip/1.2.3.4", ipQuickCheckSchema)).rejects.toBeInstanceOf(GreyNoiseApiError);
   });
 
+  it("keeps the body of a 429 that outlasts its retries", async () => {
+    const body = JSON.stringify({ error: "Your searches will reset on October 15." });
+    fetchMock.mockResolvedValue({ ok: false, status: 429, text: async () => body, headers: { get: () => null } });
+    const error = await client.get("v3/ip/8.8.8.8", ipQuickCheckSchema).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(GreyNoiseApiError);
+    expect((error as Error).message).toContain("reset on October 15");
+  });
+
   it("throws when the response fails schema validation", async () => {
     fetchMock.mockResolvedValueOnce(ok({ ip: "1.2.3.4" }));
     await expect(client.get("v3/ip/1.2.3.4", ipQuickCheckSchema)).rejects.toThrow();

@@ -79,7 +79,9 @@ export class GreyNoiseClient {
         });
 
         if (response.status === 429 || response.status >= 500) {
-          lastError = new GreyNoiseApiError(response.status, endpoint, `retryable status ${response.status}`);
+          // The body says why, such as when a plan's search quota resets.
+          const detail = await response.text().catch(() => "");
+          lastError = new GreyNoiseApiError(response.status, endpoint, `${response.status} ${detail}`.trim());
           if (attempt < maxRetries) {
             await this.backoff(attempt, response.headers.get("retry-after"));
             continue;
